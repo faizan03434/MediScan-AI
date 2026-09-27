@@ -33,7 +33,22 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: Colors.bgDark },
             animation: 'slide_from_right',
           }}
-        />
+        >
+          {/* Onboarding — no gestures, no back */}
+          <Stack.Screen name="onboarding" options={{ gestureEnabled: false, animation: 'fade' }} />
+
+          {/* Auth group */}
+          <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+
+          {/* Main tabs */}
+          <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
+
+          {/* Scan modal */}
+          <Stack.Screen name="scan/[type]" options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
+
+          {/* Comparison screen */}
+          <Stack.Screen name="compare/[scanId]" options={{ animation: 'slide_from_right' }} />
+        </Stack>
         <Toast />
       </QueryClientProvider>
     </GestureHandlerRootView>

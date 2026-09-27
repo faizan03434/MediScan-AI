@@ -92,8 +92,9 @@ try
     builder.Services.AddScoped<IAuditService, AuditService>();
     builder.Services.AddScoped<IStorageService, AzureBlobStorageService>();
     builder.Services.AddScoped<IScanService, ScanService>();
+    builder.Services.AddScoped<IMedicationService, MedicationService>();
 
-    // Register AppDbContext as IAppDbContext for ScanService
+    // Register AppDbContext as IAppDbContext for ScanService + MedicationService
     builder.Services.AddScoped<IAppDbContext>(sp =>
         (IAppDbContext)sp.GetRequiredService<AppDbContext>());
 
@@ -101,6 +102,19 @@ try
     builder.Services.AddHttpClient<IAiInferenceService, AiInferenceService>(client =>
     {
         client.Timeout = TimeSpan.FromSeconds(60);
+    });
+
+    // Drug data service (OpenFDA + Pakistan DAP) — typed HttpClient
+    builder.Services.AddHttpClient<IDrugDataService, DrugDataService>(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(15);
+        client.DefaultRequestHeaders.Add("User-Agent", "MediScanAI/1.0 (contact@mediscan.ai)");
+    });
+
+    // GPT-4o Recommendation service — typed HttpClient
+    builder.Services.AddHttpClient<IRecommendationService, RecommendationService>(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(30);
     });
 
     // ─── Controllers ───────────────────────────

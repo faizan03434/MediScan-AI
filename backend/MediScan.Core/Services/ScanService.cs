@@ -10,6 +10,10 @@ namespace MediScan.Core.Services;
 public interface IAppDbContext
 {
     DbSet<ScanRecord> ScanRecords { get; }
+    DbSet<MedicationRecord> MedicationRecords { get; }
+    DbSet<PrescriptionRecord> PrescriptionRecords { get; }
+    DbSet<DrugCache> DrugCaches { get; }
+    DbSet<AuditLog> AuditLogs { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
@@ -18,17 +22,20 @@ public class ScanService : IScanService
     private readonly IAppDbContext _db;
     private readonly IStorageService _storage;
     private readonly IAiInferenceService _aiService;
+    private readonly IRecommendationService _recommendation;
     private readonly IAuditService _audit;
 
     public ScanService(
         IAppDbContext db,
         IStorageService storage,
         IAiInferenceService aiService,
+        IRecommendationService recommendation,
         IAuditService audit)
     {
         _db = db;
         _storage = storage;
         _aiService = aiService;
+        _recommendation = recommendation;
         _audit = audit;
     }
 
@@ -70,7 +77,28 @@ public class ScanService : IScanService
                 scan.DetectionDetails = aiResult.DetectionDetails;
                 scan.AiRecommendation = aiResult.Recommendation;
 
-                if (aiResult.NextScanDays.HasValue)
+                // ── GPT-4o post-scan lifestyle advice ──────────
+                try
+                {
+                    var advice = await _recommendation.GetScanAdviceAsync(
+                        dto.ScanType,
+                        aiResult.DetectionResult,
+                        aiResult.ConfidenceScore);
+
+                    // Append GPT advice to AI recommendation
+                    scan.AiRecommendation = string.IsNullOrEmpty(aiResult.Recommendation)
+                        ? FormatAdvice(advice)
+                        : aiResult.Recommendation + "\n\n" + FormatAdvice(advice);
+
+                    if (aiResult.NextScanDays == null && advice.NextScanDays > 0)
+                    {
+                        scan.NextScanRecommendation = $"Scan again in {advice.NextScanDays} days — {advice.NextScanReason}";
+                        scan.NextScanDate = DateTime.UtcNow.AddDays(advice.NextScanDays);
+                    }
+                }
+                catch { /* GPT-4o unavailable — fallback already in aiResult.Recommendation */ }
+
+                if (aiResult.NextScanDays.HasValue && scan.NextScanDate == null)
                 {
                     scan.NextScanRecommendation = $"Scan again in {aiResult.NextScanDays} days";
                     scan.NextScanDate = DateTime.UtcNow.AddDays(aiResult.NextScanDays.Value);
@@ -194,4 +222,18 @@ public class ScanService : IScanService
         CreatedAt = scan.CreatedAt,
         CompletedAt = scan.CompletedAt
     };
+
+    private static string FormatAdvice(ScanRecommendation advice)
+    {
+        var sb = new System.Text.StringBuilder();
+        if (!string.IsNullOrEmpty(advice.LifestyleAdvice))
+            sb.AppendLine("💡 Lifestyle: " + advice.LifestyleAdvice);
+        if (!string.IsNullOrEmpty(advice.DietAdvice))
+            sb.AppendLine("🥗 Diet: " + advice.DietAdvice);
+        if (!string.IsNullOrEmpty(advice.WhenToSeeDoctor))
+            sb.AppendLine("⚕️ See Doctor When: " + advice.WhenToSeeDoctor);
+        if (advice.KeyPoints.Count > 0)
+            sb.AppendLine("📌 Key Points:\n" + string.Join("\n", advice.KeyPoints.Select(p => "• " + p)));
+        return sb.ToString().Trim();
+    }
 }

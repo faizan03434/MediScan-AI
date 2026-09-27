@@ -1,0 +1,52 @@
+version: "3.9"
+
+# ============================================================
+# MediScan AI — Minimal Dev Stack (Postgres + Redis only)
+# Use this when running .NET API and FastAPI locally (not Docker)
+#
+# Start:  docker-compose -f docker-compose.dev.yml up -d
+# Stop:   docker-compose -f docker-compose.dev.yml down
+# ============================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mediscan_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       mediscan_db
+      POSTGRES_USER:     mediscan_user
+      POSTGRES_PASSWORD: mediscan_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mediscan_user -d mediscan_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: mediscan_redis
+    restart: unless-stopped
+    command: redis-server --requirepass mediscan_redis_pass --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "mediscan_redis_pass", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: mediscan_network

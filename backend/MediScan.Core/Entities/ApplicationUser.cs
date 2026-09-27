@@ -19,4 +19,5 @@ public class ApplicationUser : IdentityUser
     // Navigation
     public ICollection<ScanRecord> ScanRecords { get; set; } = new List<ScanRecord>();
     public ICollection<MedicationRecord> MedicationRecords { get; set; } = new List<MedicationRecord>();
+    public ICollection<PrescriptionRecord> PrescriptionRecords { get; set; } = new List<PrescriptionRecord>();
 }

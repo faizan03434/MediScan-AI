@@ -179,6 +179,81 @@ namespace MediScan.Infra.Data.Migrations
                     b.ToTable("AuditLogs");
                 });
 
+            modelBuilder.Entity("MediScan.Core.Entities.DrugCache", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Barcode")
+                        .HasColumnType("text");
+
+                    b.Property<string>("BrandName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ContraindicationsJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CountryOfOrigin")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<string>("DosageForm")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("FetchedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GenericName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Indication")
+                        .HasColumnType("text");
+
+                    b.Property<string>("InteractionsJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Manufacturer")
+                        .HasColumnType("text");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("RawResponseJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SideEffectsJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("StorageInfo")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Strength")
+                        .HasColumnType("text");
+
+                    b.Property<string>("WarningsJson")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Barcode");
+
+                    b.HasIndex("NormalizedName");
+
+                    b.ToTable("DrugCaches");
+                });
+
             modelBuilder.Entity("MediScan.Core.Entities.MedicationRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -191,11 +266,15 @@ namespace MediScan.Infra.Data.Migrations
                     b.Property<string>("Barcode")
                         .HasColumnType("text");
 
+                    b.Property<string>("Contraindications")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("DosageForm")
-                        .HasColumnType("text");
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<string>("DrugInteractions")
                         .HasColumnType("text");
@@ -206,6 +285,13 @@ namespace MediScan.Infra.Data.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.Property<string>("GenericName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("HasSafetyWarning")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ImageBlobName")
                         .HasColumnType("text");
 
                     b.Property<string>("ImageUrl")
@@ -216,7 +302,8 @@ namespace MediScan.Infra.Data.Migrations
 
                     b.Property<string>("InputMethod")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
@@ -225,7 +312,8 @@ namespace MediScan.Infra.Data.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<string>("Manufacturer")
-                        .HasColumnType("text");
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("PrescribedBy")
                         .HasColumnType("text");
@@ -233,11 +321,18 @@ namespace MediScan.Infra.Data.Migrations
                     b.Property<DateTime?>("PrescribedDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("PrescriptionRecordId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("SideEffects")
                         .HasColumnType("text");
 
-                    b.Property<string>("Strength")
+                    b.Property<string>("StorageInfo")
                         .HasColumnType("text");
+
+                    b.Property<string>("Strength")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<string>("UserId")
                         .IsRequired()
@@ -248,9 +343,83 @@ namespace MediScan.Infra.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("Barcode");
+
+                    b.HasIndex("PrescriptionRecordId");
+
+                    b.HasIndex("UserId", "CreatedAt");
 
                     b.ToTable("MedicationRecords");
+                });
+
+            modelBuilder.Entity("MediScan.Core.Entities.PrescriptionRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AiAnalysis")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AiParsedJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClinicName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Diagnosis")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DoctorName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("DoctorSpecialty")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("HasSafetyWarnings")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ImageBlobName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OcrRawText")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("PrescribedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("PrescriptionRecords");
                 });
 
             modelBuilder.Entity("MediScan.Core.Entities.RefreshToken", b =>
@@ -331,11 +500,13 @@ namespace MediScan.Infra.Data.Migrations
 
                     b.Property<string>("ScanType")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("UserId")
                         .IsRequired()
@@ -484,8 +655,26 @@ namespace MediScan.Infra.Data.Migrations
 
             modelBuilder.Entity("MediScan.Core.Entities.MedicationRecord", b =>
                 {
+                    b.HasOne("MediScan.Core.Entities.PrescriptionRecord", "PrescriptionRecord")
+                        .WithMany("Medications")
+                        .HasForeignKey("PrescriptionRecordId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("MediScan.Core.Entities.ApplicationUser", "User")
                         .WithMany("MedicationRecords")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PrescriptionRecord");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("MediScan.Core.Entities.PrescriptionRecord", b =>
+                {
+                    b.HasOne("MediScan.Core.Entities.ApplicationUser", "User")
+                        .WithMany("PrescriptionRecords")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -570,7 +759,14 @@ namespace MediScan.Infra.Data.Migrations
                 {
                     b.Navigation("MedicationRecords");
 
+                    b.Navigation("PrescriptionRecords");
+
                     b.Navigation("ScanRecords");
+                });
+
+            modelBuilder.Entity("MediScan.Core.Entities.PrescriptionRecord", b =>
+                {
+                    b.Navigation("Medications");
                 });
 #pragma warning restore 612, 618
         }
