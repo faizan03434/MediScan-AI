@@ -1,0 +1,133 @@
+version: "3.9"
+
+# ============================================================
+# MediScan AI — Local Development Stack
+# ============================================================
+# Start everything:   docker-compose up -d
+# Stop everything:    docker-compose down
+# View logs:          docker-compose logs -f
+# Reset DB:           docker-compose down -v && docker-compose up -d
+# ============================================================
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: mediscan_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       mediscan_db
+      POSTGRES_USER:     mediscan_user
+      POSTGRES_PASSWORD: mediscan_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mediscan_user -d mediscan_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ───────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: mediscan_redis
+    restart: unless-stopped
+    command: redis-server --requirepass mediscan_redis_pass --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "mediscan_redis_pass", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── .NET API ────────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mediscan_api
+    restart: unless-stopped
+    ports:
+      - "5000:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT:    Development
+      ASPNETCORE_URLS:           http://+:8080
+      ConnectionStrings__DefaultConnection: >
+        Host=postgres;Port=5432;Database=mediscan_db;
+        Username=mediscan_user;Password=mediscan_pass
+      Jwt__Secret:     dev-jwt-secret-change-in-production-min32chars
+      Jwt__Issuer:     MediScanAI
+      Jwt__Audience:   MediScanAIUsers
+      Jwt__ExpiryMinutes: "60"
+      AiServer__Url:   http://ai-server:8000
+      AiServer__ApiKey: internal-dev-key
+      Azure__StorageConnectionString: ""
+      Azure__ContainerName: mediscan-scans
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/v1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ── FastAPI AI Server ────────────────────────────────────────
+  ai-server:
+    build:
+      context: ./ai-server
+      dockerfile: Dockerfile
+    container_name: mediscan_ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      AI_API_KEY:     internal-dev-key
+      AI_DEBUG:       "true"
+      AI_MODELS_DIR:  /app/models
+    volumes:
+      - ./ai-server/models:/app/models   # Mount trained models
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 60s    # AI server takes longer to start
+
+  # ── pgAdmin (optional DB UI) ─────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: mediscan_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    admin@mediscan.local
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    profiles:
+      - tools   # Only starts with: docker-compose --profile tools up
+
+# ── Volumes ──────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# ── Networks ─────────────────────────────────────────────────
+networks:
+  default:
+    name: mediscan_network

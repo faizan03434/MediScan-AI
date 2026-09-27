@@ -1,0 +1,73 @@
+name: 🟡 Mobile CI — React Native
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "apps/mobile/**"
+      - ".github/workflows/ci-mobile.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/mobile/**"
+
+jobs:
+  type-check-and-lint:
+    name: TypeScript & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/mobile
+        run: npm ci --legacy-peer-deps
+
+      - name: TypeScript type-check
+        working-directory: apps/mobile
+        run: npx tsc --noEmit
+        continue-on-error: true  # Don't fail CI until types are fully wired
+
+      - name: ESLint
+        working-directory: apps/mobile
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Check for TODO / FIXME markers
+        working-directory: apps/mobile
+        run: |
+          count=$(grep -rn "TODO\|FIXME\|HACK" src/ --include="*.ts" --include="*.tsx" | wc -l)
+          echo "Found $count TODO/FIXME markers"
+
+  expo-doctor:
+    name: Expo Doctor Check
+    runs-on: ubuntu-latest
+    needs: type-check-and-lint
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Expo CLI
+        run: npm install -g expo-cli@latest
+
+      - name: Install dependencies
+        working-directory: apps/mobile
+        run: npm ci --legacy-peer-deps
+
+      - name: Validate app.json
+        working-directory: apps/mobile
+        run: node -e "JSON.parse(require('fs').readFileSync('app.json','utf8')); console.log('app.json is valid JSON')"

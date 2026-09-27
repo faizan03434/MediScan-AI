@@ -1,0 +1,46 @@
+# ============================================================
+# MediScan AI Server — Python Dependencies
+# ============================================================
+
+# Web Framework
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+python-multipart==0.0.12
+
+# AI / ML Core
+torch==2.4.1
+torchvision==0.19.1
+ultralytics==8.3.0          # YOLOv8
+mediapipe==0.10.18          # Pose detection
+opencv-python-headless==4.10.0.84
+Pillow==11.0.0
+numpy==1.26.4
+scikit-learn==1.5.2
+
+# Model utilities
+onnxruntime==1.20.1         # ONNX inference (faster than PyTorch for prod)
+timm==1.0.11                # EfficientNet / MobileNet pretrained models
+
+# API & Validation
+pydantic==2.9.2
+pydantic-settings==2.6.1
+python-jose[cryptography]==3.3.0   # JWT verification
+
+# HTTP
+httpx==0.27.2
+aiofiles==24.1.0
+
+# Image processing
+imutils==0.5.4
+
+# Logging & Monitoring
+structlog==24.4.0
+python-json-logger==2.0.7
+
+# Testing
+pytest==8.3.3
+pytest-asyncio==0.24.0
+httpx==0.27.2
+
+# Linting (dev only)
+ruff==0.7.1

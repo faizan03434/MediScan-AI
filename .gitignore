@@ -1,0 +1,147 @@
+# ============================================================
+# MediScan AI — .gitignore
+# ============================================================
+
+# ──────────────────────────────────────────────
+# SECRETS & ENVIRONMENT — Never commit these!
+# ──────────────────────────────────────────────
+.env
+.env.*
+*.env
+!.env.example
+appsettings.Development.json
+appsettings.Production.json
+secrets.json
+**/secrets/
+**/*.pfx
+**/*.p12
+**/*.key
+**/*.pem
+**/credentials.json
+
+# ──────────────────────────────────────────────
+# .NET / C#
+# ──────────────────────────────────────────────
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.vs/
+.vs/
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+project.lock.json
+project.fragment.lock.json
+artifacts/
+**/TestResults/
+**/coverage/
+*.ncrunchproject
+
+# ──────────────────────────────────────────────
+# Python / FastAPI / AI Server
+# ──────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+ENV/
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+
+# AI Model files (large — store in Azure Blob / DVC)
+ai-server/models/*.pt
+ai-server/models/*.pth
+ai-server/models/*.onnx
+ai-server/models/*.h5
+ai-server/models/*.pb
+ai-server/training/runs/
+ai-server/training/datasets/
+
+# ──────────────────────────────────────────────
+# Node.js / React Native / Expo
+# ──────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.pnp.*
+
+# Expo
+apps/mobile/.expo/
+apps/mobile/dist/
+apps/mobile/web-build/
+apps/mobile/android/
+apps/mobile/ios/
+apps/web-admin/.next/
+apps/web-admin/out/
+apps/web-admin/dist/
+
+# ──────────────────────────────────────────────
+# Docker
+# ──────────────────────────────────────────────
+docker-compose.override.yml
+
+# ──────────────────────────────────────────────
+# OS Generated
+# ──────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ──────────────────────────────────────────────
+# IDEs & Editors
+# ──────────────────────────────────────────────
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Keep these VS Code files
+!.vscode/extensions.json
+!.vscode/tasks.json
+
+# ──────────────────────────────────────────────
+# Logs
+# ──────────────────────────────────────────────
+logs/
+*.log
+*.log.*
+
+# ──────────────────────────────────────────────
+# Azure / Terraform
+# ──────────────────────────────────────────────
+infrastructure/**/*.tfstate
+infrastructure/**/*.tfstate.backup
+infrastructure/**/.terraform/
+infrastructure/**/*.tfvars
+!infrastructure/**/*.tfvars.example

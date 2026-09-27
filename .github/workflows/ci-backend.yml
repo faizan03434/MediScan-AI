@@ -1,0 +1,111 @@
+name: 🔵 Backend CI — .NET API
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "backend/**"
+      - ".github/workflows/ci-backend.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+
+env:
+  DOTNET_VERSION: "9.0.x"
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB:       mediscan_test
+          POSTGRES_USER:     mediscan_user
+          POSTGRES_PASSWORD: mediscan_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/packages.lock.json', '**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore dependencies
+        run: dotnet restore MediScan.sln
+        working-directory: backend
+
+      - name: Build (Release)
+        run: dotnet build MediScan.sln -c Release --no-restore
+        working-directory: backend
+
+      - name: Run Tests
+        run: >
+          dotnet test MediScan.Tests/MediScan.Tests.csproj
+          -c Release --no-build
+          --logger "trx;LogFileName=test-results.trx"
+          --collect:"XPlat Code Coverage"
+        working-directory: backend
+        env:
+          ConnectionStrings__DefaultConnection: >
+            Host=localhost;Port=5432;Database=mediscan_test;
+            Username=mediscan_user;Password=mediscan_pass
+          Jwt__Secret: ci-test-secret-key-min-32-chars-ok
+          Jwt__Issuer:   MediScanAI
+          Jwt__Audience: MediScanAIUsers
+          AiServer__Url: http://localhost:8000
+          AiServer__ApiKey: test-key
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-results
+          path: backend/MediScan.Tests/TestResults/
+
+  docker-build:
+    name: Docker Build Check
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t mediscan-api:${{ github.sha }} ./backend
+
+      - name: Verify image starts
+        run: |
+          docker run -d --name test-api \
+            -e ASPNETCORE_ENVIRONMENT=Development \
+            -e Jwt__Secret=test-secret-key-min-32-chars-ok \
+            -e Jwt__Issuer=MediScanAI \
+            -e Jwt__Audience=MediScanAIUsers \
+            -e ConnectionStrings__DefaultConnection="Host=localhost;Database=test" \
+            mediscan-api:${{ github.sha }}
+          sleep 5
+          docker logs test-api
+          docker rm -f test-api
