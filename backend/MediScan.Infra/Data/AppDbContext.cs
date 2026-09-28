@@ -13,6 +13,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
     public DbSet<MedicationRecord> MedicationRecords => Set<MedicationRecord>();
     public DbSet<PrescriptionRecord> PrescriptionRecords => Set<PrescriptionRecord>();
     public DbSet<DrugCache> DrugCaches => Set<DrugCache>();
+    public DbSet<PatientConsent> PatientConsents => Set<PatientConsent>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
@@ -116,6 +117,25 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
              .HasForeignKey(r => r.UserId)
              .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(r => r.Token).IsUnique();
+        });
+
+        // ── PatientConsent ─────────────────────────────────────
+        builder.Entity<PatientConsent>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(c => c.PatientUserId).IsRequired();
+            e.Property(c => c.DoctorUserId).IsRequired();
+            e.HasOne(c => c.Patient)
+             .WithMany(u => u.GrantedConsents)
+             .HasForeignKey(c => c.PatientUserId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(c => c.Doctor)
+             .WithMany(u => u.ReceivedConsents)
+             .HasForeignKey(c => c.DoctorUserId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(c => new { c.PatientUserId, c.DoctorUserId });
+            e.HasIndex(c => c.Status);
         });
     }
 }

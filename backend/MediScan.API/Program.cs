@@ -90,7 +90,22 @@ try
     // ─── Application Services ──────────────────
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IAuditService, AuditService>();
-    builder.Services.AddScoped<IStorageService, AzureBlobStorageService>();
+    builder.Services.AddScoped<IDoctorService, DoctorService>();
+    builder.Services.AddScoped<IStorageService>(sp =>
+    {
+        var config = sp.GetRequiredService<IConfiguration>();
+        var connStr = config["Azure:StorageConnectionString"] ?? "";
+
+        // Auto-select: Azure Blob if configured, local disk otherwise
+        if (!string.IsNullOrWhiteSpace(connStr))
+            return new AzureBlobStorageService(config);
+        else
+            return new LocalStorageService(
+                config,
+                sp.GetRequiredService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>(),
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LocalStorageService>>()
+            );
+    });
     builder.Services.AddScoped<IScanService, ScanService>();
     builder.Services.AddScoped<IMedicationService, MedicationService>();
 
@@ -177,6 +192,9 @@ try
 
     app.UseMiddleware<ExceptionMiddleware>();
     app.UseSerilogRequestLogging();
+
+    // Serve local uploaded files in development
+    app.UseStaticFiles();
 
     if (app.Environment.IsDevelopment())
     {

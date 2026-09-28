@@ -20,4 +20,9 @@ public class ApplicationUser : IdentityUser
     public ICollection<ScanRecord> ScanRecords { get; set; } = new List<ScanRecord>();
     public ICollection<MedicationRecord> MedicationRecords { get; set; } = new List<MedicationRecord>();
     public ICollection<PrescriptionRecord> PrescriptionRecords { get; set; } = new List<PrescriptionRecord>();
+
+    // Doctor role: consents this doctor has received from patients
+    public ICollection<PatientConsent> ReceivedConsents { get; set; } = new List<PatientConsent>();
+    // Patient role: consents this patient has granted to doctors
+    public ICollection<PatientConsent> GrantedConsents { get; set; } = new List<PatientConsent>();
 }

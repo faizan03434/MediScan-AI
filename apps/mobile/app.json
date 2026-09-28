@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.mediscan.ai",
+      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "MediScan AI needs camera access for medical detection scans.",
         "NSPhotoLibraryUsageDescription": "MediScan AI needs photo library access to analyze saved images.",
@@ -32,8 +33,11 @@
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
-        "VIBRATE"
-      ]
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "SCHEDULE_EXACT_ALARM"
+      ],
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/images/favicon.png"

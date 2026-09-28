@@ -352,6 +352,57 @@ namespace MediScan.Infra.Data.Migrations
                     b.ToTable("MedicationRecords");
                 });
 
+            modelBuilder.Entity("MediScan.Core.Entities.PatientConsent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AllowedScanTypesJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ConsentMessage")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DoctorUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PatientNote")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PatientUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DoctorUserId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("PatientUserId", "DoctorUserId");
+
+                    b.ToTable("PatientConsents");
+                });
+
             modelBuilder.Entity("MediScan.Core.Entities.PrescriptionRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -671,6 +722,25 @@ namespace MediScan.Infra.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("MediScan.Core.Entities.PatientConsent", b =>
+                {
+                    b.HasOne("MediScan.Core.Entities.ApplicationUser", "Doctor")
+                        .WithMany("ReceivedConsents")
+                        .HasForeignKey("DoctorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MediScan.Core.Entities.ApplicationUser", "Patient")
+                        .WithMany("GrantedConsents")
+                        .HasForeignKey("PatientUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Doctor");
+
+                    b.Navigation("Patient");
+                });
+
             modelBuilder.Entity("MediScan.Core.Entities.PrescriptionRecord", b =>
                 {
                     b.HasOne("MediScan.Core.Entities.ApplicationUser", "User")
@@ -757,9 +827,13 @@ namespace MediScan.Infra.Data.Migrations
 
             modelBuilder.Entity("MediScan.Core.Entities.ApplicationUser", b =>
                 {
+                    b.Navigation("GrantedConsents");
+
                     b.Navigation("MedicationRecords");
 
                     b.Navigation("PrescriptionRecords");
+
+                    b.Navigation("ReceivedConsents");
 
                     b.Navigation("ScanRecords");
                 });

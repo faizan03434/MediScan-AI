@@ -48,6 +48,12 @@ export default function RootLayout() {
 
           {/* Comparison screen */}
           <Stack.Screen name="compare/[scanId]" options={{ animation: 'slide_from_right' }} />
+
+          {/* Doctor portal */}
+          <Stack.Screen name="doctor" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="doctor/request-access" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="doctor/consents" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="doctor/patient/[id]" options={{ animation: 'slide_from_right' }} />
         </Stack>
         <Toast />
       </QueryClientProvider>

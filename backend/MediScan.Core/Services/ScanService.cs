@@ -14,6 +14,7 @@ public interface IAppDbContext
     DbSet<PrescriptionRecord> PrescriptionRecords { get; }
     DbSet<DrugCache> DrugCaches { get; }
     DbSet<AuditLog> AuditLogs { get; }
+    DbSet<PatientConsent> PatientConsents { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 

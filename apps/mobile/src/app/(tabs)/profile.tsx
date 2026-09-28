@@ -148,6 +148,8 @@ export default function ProfileScreen() {
         {/* Settings & Logout */}
         <View style={{ paddingHorizontal: 20, marginTop: 28, gap: 10 }}>
           {[
+            { label: '👨‍⚕️ Doctor Portal', action: () => router.push('/doctor') },
+            { label: '🔐 Doctor Access Requests', action: () => router.push('/doctor/consents') },
             { label: '🔔 Notifications', action: () => Alert.alert('Coming Soon') },
             { label: '🔒 Privacy & Data', action: () => Alert.alert('Coming Soon') },
             { label: '📋 HIPAA Consent',  action: () => Alert.alert('Coming Soon') },
