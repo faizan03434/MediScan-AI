@@ -30,8 +30,27 @@ try
         .WriteTo.Console());
 
     // ─── Database ──────────────────────────────
+    // Auto-select: SQLite for dev (no PostgreSQL password needed), PostgreSQL for prod
+    var connStr = builder.Configuration.GetConnectionString("DefaultConnection") ?? "";
+    var useSqlite = connStr.StartsWith("Data Source=") || connStr.Contains(".db") ||
+                    builder.Configuration["Database:Provider"] == "sqlite";
+
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    {
+        if (useSqlite)
+        {
+            var sqlitePath = connStr.Replace("Data Source=", "").Replace(";", "").Trim();
+            if (string.IsNullOrEmpty(sqlitePath) || !connStr.Contains("="))
+                sqlitePath = Path.Combine(builder.Environment.ContentRootPath, "mediscan_dev.db");
+            options.UseSqlite($"Data Source={sqlitePath}");
+            Log.Information("Database: SQLite at {Path}", sqlitePath);
+        }
+        else
+        {
+            options.UseNpgsql(connStr);
+            Log.Information("Database: PostgreSQL");
+        }
+    });
 
     // ─── Identity ──────────────────────────────
     builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -182,12 +201,16 @@ try
     var app = builder.Build();
     // ─────────────────────────────────────────────
 
-    // Run migrations on startup (dev only — use proper migration strategy in prod)
+    // Run migrations + seed on startup (dev only)
     if (app.Environment.IsDevelopment())
     {
         using var scope = app.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await db.Database.MigrateAsync();
+        var db          = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        var seedLogger  = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+        await DatabaseSeeder.SeedAsync(db, userManager, roleManager, seedLogger);
     }
 
     app.UseMiddleware<ExceptionMiddleware>();

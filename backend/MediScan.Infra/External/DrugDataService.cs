@@ -39,8 +39,10 @@ public class DrugDataService : IDrugDataService
         var normalized = NormalizeName(drugName);
 
         // 1. Check DB cache first
+        var now = DateTime.UtcNow;
         var cached = await _db.DrugCaches
-            .Where(d => d.NormalizedName == normalized && !d.IsExpired)
+            .Where(d => d.NormalizedName == normalized &&
+                       (d.ExpiresAt == null || d.ExpiresAt > now))
             .OrderByDescending(d => d.FetchedAt)
             .FirstOrDefaultAsync();
 
@@ -71,8 +73,10 @@ public class DrugDataService : IDrugDataService
     public async Task<DrugInfoDto?> FetchByBarcodeAsync(string barcode)
     {
         // Check cache by barcode
+        var barcodeNow = DateTime.UtcNow;
         var cached = await _db.DrugCaches
-            .Where(d => d.Barcode == barcode && !d.IsExpired)
+            .Where(d => d.Barcode == barcode &&
+                       (d.ExpiresAt == null || d.ExpiresAt > barcodeNow))
             .FirstOrDefaultAsync();
 
         if (cached != null)
