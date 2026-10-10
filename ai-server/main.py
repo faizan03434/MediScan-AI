@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from config import get_settings
-from routers import screening_preview, document_ocr, model_status
+from routers import screening_preview, document_ocr, model_status, capture_guidance
 
 logger = structlog.get_logger()
 
@@ -46,6 +46,7 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan,
 )
+app.include_router(capture_guidance.router)
 
 # ── CORS ────────────────────────────────────────────────────────
 # Only the .NET API should call this; restrict in production

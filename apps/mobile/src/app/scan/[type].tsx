@@ -101,7 +101,7 @@ export default function ScanScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bgDark, padding: 24, justifyContent: 'center' }}>
       <Text style={{ color: Colors.textPrimary, fontSize: 26, fontWeight: '800', marginBottom: 16 }}>{module.icon} {module.title}</Text>
       <Text style={{ color: Colors.warning, fontSize: 17, fontWeight: '700', marginBottom: 16 }}>Research preview — disease detection is not validated</Text>
-      <Text style={{ color: Colors.textSecondary, fontSize: 16, lineHeight: 25, marginBottom: 24 }}>Continuing will upload and save your photo to the local development server under your account. This version provides photo history, not a diagnosis or a medicine recommendation. Use test photos. A clinician must assess symptoms and prescriptions.</Text>
+      <Text style={{ color: Colors.textSecondary, fontSize: 16, lineHeight: 25, marginBottom: 24 }}>Continuing will upload and save your final photo under your account. If you start live auto-capture, temporary preview frames are sent for framing checks without saving them; a stable capture is then saved automatically. This version provides photo history, not a validated diagnosis or a medicine recommendation. Use test photos. A clinician must assess symptoms and prescriptions.</Text>
       {module.captureMode === 'upload_only' && <Text style={{ color: Colors.textPrimary, lineHeight: 24, marginBottom: 20 }}>{module.instructions}</Text>}
       {module.captureMode !== 'upload_only' && <Button title="I agree — take a photo" onPress={() => setViewState('camera')} disabled={picking} fullWidth />}
       <Button title={module.captureMode === 'upload_only' ? 'I agree — choose fundus image' : 'I agree — upload a saved photo'} variant={module.captureMode === 'upload_only' ? 'primary' : 'secondary'} onPress={handleGallery} loading={picking} fullWidth style={{ marginTop: 12 }} />
@@ -330,6 +330,7 @@ export default function ScanScreen() {
     <ScanCamera
       module={module}
       onCapture={reviewPhoto}
+      onAutoCapture={handleCapture}
       onClose={() => setViewState('consent')}
     />
   );

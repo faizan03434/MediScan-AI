@@ -8,7 +8,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "eslint . --ext .ts,.tsx",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test:capture": "node scripts/test-capture-stability.cjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -24,7 +25,9 @@
     "expo-camera": "~17.0.0",
     "expo-constants": "~18.0.0",
     "expo-device": "~8.0.0",
+    "expo-file-system": "~19.0.24",
     "expo-font": "~14.0.0",
+    "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.0",
     "expo-linear-gradient": "~15.0.0",
     "expo-linking": "~8.0.12",

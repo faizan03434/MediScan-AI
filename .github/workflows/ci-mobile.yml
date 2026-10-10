@@ -39,6 +39,10 @@ jobs:
         working-directory: apps/mobile
         run: npm run lint
 
+      - name: Capture stability checks
+        working-directory: apps/mobile
+        run: npm run test:capture
+
       - name: Check for TODO / FIXME markers
         working-directory: apps/mobile
         run: |

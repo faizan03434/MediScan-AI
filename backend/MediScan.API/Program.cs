@@ -111,12 +111,17 @@ try
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 30,
                 Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+        options.AddPolicy("capture", context => RateLimitPartition.GetFixedWindowLimiter(
+            context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "unauthenticated",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     });
     builder.Services.AddSingleton(TimeProvider.System);
     builder.Services.AddSingleton<EmailOtpStore>();
     builder.Services.AddScoped<IVerificationEmailSender, SmtpEmailSender>();
     builder.Services.AddSingleton<IGoogleIdentityVerifier, GoogleIdentityVerifier>();
     builder.Services.AddScoped<AccountAccessService>();
+    builder.Services.AddHttpClient("capture-guide", client => client.Timeout = TimeSpan.FromSeconds(10));
 
     // ─── CORS ──────────────────────────────────
     builder.Services.AddCors(options =>
