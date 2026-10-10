@@ -1,0 +1,40 @@
+name: Upload security regression checks
+
+on:
+  push:
+    paths:
+      - 'ai-server/utils/image_utils.py'
+      - 'ai-server/utils/auth_utils.py'
+      - 'ai-server/tests/test_image_upload_security.py'
+      - '.github/workflows/ci-upload-security.yml'
+  pull_request:
+    paths:
+      - 'ai-server/utils/image_utils.py'
+      - 'ai-server/utils/auth_utils.py'
+      - 'ai-server/tests/test_image_upload_security.py'
+      - '.github/workflows/ci-upload-security.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  upload-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install production-pinned utility dependencies
+        working-directory: ai-server
+        run: |
+          python - <<'PY'
+          import pathlib, subprocess, sys
+          names = {'fastapi', 'pydantic-settings', 'numpy', 'opencv-python-headless', 'Pillow'}
+          lines = pathlib.Path('requirements.txt').read_text().splitlines()
+          dependencies = [line.split('#')[0].strip() for line in lines if line.split('==')[0].strip() in names]
+          subprocess.check_call([sys.executable, '-m', 'pip', 'install', *dependencies])
+          PY
+      - name: Verify allocation bounds, metadata handling and authentication
+        working-directory: ai-server
+        run: python -m unittest discover -s tests -p test_image_upload_security.py -v

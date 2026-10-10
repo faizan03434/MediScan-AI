@@ -4,26 +4,41 @@ Image preprocessing utilities shared across all detection modules.
 import io
 import cv2
 import numpy as np
-from PIL import Image, ImageEnhance
+from PIL import Image, ImageEnhance, ImageOps, UnidentifiedImageError
 from fastapi import HTTPException
+
+MAX_DECODED_PIXELS = 20_000_000
+MAX_IMAGE_EDGE = 10_000
+ALLOWED_IMAGE_FORMATS = {'JPEG', 'PNG', 'WEBP'}
 
 
 def read_image_from_bytes(image_bytes: bytes) -> np.ndarray:
     """Convert raw bytes to OpenCV BGR image."""
-    nparr = np.frombuffer(image_bytes, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    if img is None:
-        raise HTTPException(status_code=400, detail="Could not decode image.")
-    return img
+    image = pil_from_bytes(image_bytes)
+    return cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
 
 
 def pil_from_bytes(image_bytes: bytes) -> Image.Image:
-    """Convert raw bytes to PIL Image."""
+    """Bound allocation before decoding; normalize orientation and drop metadata."""
     try:
-        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        return img
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid image format.")
+        with Image.open(io.BytesIO(image_bytes)) as source:
+            if source.format not in ALLOWED_IMAGE_FORMATS:
+                raise HTTPException(status_code=415, detail='Upload a JPEG, PNG or WebP image.')
+            width, height = source.size
+            if width * height > MAX_DECODED_PIXELS or max(width, height) > MAX_IMAGE_EDGE:
+                raise HTTPException(status_code=413, detail='Image resolution is too large. Resize before uploading.')
+            if getattr(source, 'n_frames', 1) != 1:
+                raise HTTPException(status_code=415, detail='Upload a single still photo, not an animated image.')
+            source.load()
+            image = ImageOps.exif_transpose(source).convert('RGB')
+            image.info.clear()
+            return image
+    except HTTPException:
+        raise
+    except (Image.DecompressionBombError, Image.DecompressionBombWarning):
+        raise HTTPException(status_code=413, detail='Image resolution is too large. Resize before uploading.') from None
+    except (UnidentifiedImageError, OSError, ValueError, SyntaxError):
+        raise HTTPException(status_code=400, detail='Invalid image format.') from None
 
 
 def resize_with_padding(img: np.ndarray, target_size: int = 640) -> np.ndarray:
