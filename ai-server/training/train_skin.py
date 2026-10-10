@@ -12,7 +12,6 @@ Usage:
 """
 import argparse
 import os
-import json
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -22,7 +21,6 @@ from PIL import Image
 import timm
 from pathlib import Path
 from collections import Counter
-import numpy as np
 
 HAM10000_LABEL_MAP = {
     "akiec": 0,  # Actinic Keratosis
@@ -82,7 +80,7 @@ def get_weighted_sampler(dataset: HAM10000Dataset) -> WeightedRandomSampler:
     labels = [HAM10000_LABEL_MAP[row["dx"]] for _, row in dataset.df.iterrows()]
     counts = Counter(labels)
     total = sum(counts.values())
-    weights = [total / counts[l] for l in labels]
+    weights = [total / counts[label] for label in labels]
     return WeightedRandomSampler(weights, num_samples=len(weights), replacement=True)
 
 

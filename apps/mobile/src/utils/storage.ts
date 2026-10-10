@@ -2,7 +2,7 @@
  * Typed wrappers around expo-secure-store for persistent flags.
  * Used for onboarding completion, consent, etc.
  */
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from './secureStorage';
 
 const KEYS = {
   ONBOARDING_COMPLETE: 'mediscan_onboarding_done',

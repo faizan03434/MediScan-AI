@@ -1,28 +1,30 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
-  Alert, ActivityIndicator, Modal, KeyboardAvoidingView,
-  Platform, FlatList,
+  ActivityIndicator, KeyboardAvoidingView,
+  Platform, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import useMedicationStore from '../../store/medicationStore';
 import medicationService from '../../services/medicationService';
+import DocumentReview from '../../components/common/DocumentReview';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { Colors } from '../../theme/colors';
 import type { DrugInfo } from '../../services/medicationService';
 import { format } from 'date-fns';
+import { errorMessage } from '../../utils/errorMessage';
 
-type InputMode = 'manual' | 'barcode' | 'prescription';
-type ViewState = 'input' | 'scanning' | 'loading' | 'result' | 'prescription_result';
+type InputMode = 'manual' | 'barcode' | 'prescription' | 'box';
+type ViewState = 'input' | 'scanning' | 'loading' | 'result' | 'prescription_result' | 'review';
 
 export default function MedicationScreen() {
-  const router = useRouter();
+  const [photo, setPhoto] = useState('');
+  const [documentWasOcr, setDocumentWasOcr] = useState(false);
   const [mode, setMode] = useState<InputMode>('manual');
   const [viewState, setViewState] = useState<ViewState>('input');
   const [manualQuery, setManualQuery] = useState('');
@@ -34,9 +36,10 @@ export default function MedicationScreen() {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   const {
-    currentDrug, currentPrescription, isLoading, error,
-    searchByName, searchByBarcode, analyzePrescription, clearCurrent,
+    currentDrug, currentPrescription, isLoading,
+    searchByName, searchByBarcode, clearCurrent,
   } = useMedicationStore();
+  const [feedback, setFeedback] = useState('');
 
   const { data: history, refetch: refetchHistory } = useQuery({
     queryKey: ['medicationHistory'],
@@ -46,17 +49,18 @@ export default function MedicationScreen() {
 
   // ── Manual search ─────────────────────────────────────────
   const handleManualSearch = async () => {
+    setFeedback('');
     if (manualQuery.trim().length < 2) {
-      Alert.alert('Too short', 'Enter at least 2 characters to search.');
+      setFeedback('Enter at least 2 characters to search.');
       return;
     }
     setViewState('loading');
     try {
       await searchByName(manualQuery.trim());
       setViewState('result');
-    } catch {
+    } catch (e) {
       setViewState('input');
-      Alert.alert('Not Found', `No information found for "${manualQuery}".`);
+      setFeedback(errorMessage(e));
     }
   };
 
@@ -64,20 +68,24 @@ export default function MedicationScreen() {
   const handleBarcodeScan = async ({ data }: { data: string }) => {
     if (isBarcodeScanned) return;
     setIsBarcodeScanned(true);
+    setFeedback('');
     setScannedBarcode(data);
     setViewState('loading');
     try {
       await searchByBarcode(data);
       setViewState('result');
-    } catch {
+    } catch (e) {
       setViewState('input');
       setIsBarcodeScanned(false);
-      Alert.alert('Not Found', `Barcode "${data}" not found in drug database.`);
+      setFeedback(`${errorMessage(e)} If this barcode is unknown, enter the exact medicine name manually. Pakistan barcode mapping is not connected.`);
     }
   };
 
   // ── Prescription OCR ──────────────────────────────────────
   const handlePrescriptionCapture = async () => {
+    try {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) { setFeedback('Camera access was declined. Choose a photo from your gallery instead.'); return; }
     const result = await ImagePicker.launchCameraAsync({
       quality: 0.9,
       allowsEditing: false,
@@ -86,37 +94,19 @@ export default function MedicationScreen() {
     if (result.canceled || !result.assets[0]?.uri) return;
     const uri = result.assets[0].uri;
 
-    if (!prescriptionNotes.trim() && !doctorName.trim()) {
-      Alert.alert(
-        'Tip for Better Results',
-        'Type the drug names (one per line) in the Notes field below for more accurate analysis. Or continue without it.',
-        [
-          { text: 'Add Notes', style: 'cancel' },
-          {
-            text: 'Continue',
-            onPress: () => runPrescriptionAnalysis(uri),
-          },
-        ],
-      );
-    } else {
-      await runPrescriptionAnalysis(uri);
-    }
+    await runPrescriptionAnalysis(uri);
+    } catch (e) { setFeedback(errorMessage(e)); }
   };
 
   const runPrescriptionAnalysis = async (uri: string) => {
-    setViewState('loading');
-    try {
-      await analyzePrescription(uri, doctorName, prescriptionNotes);
-      setViewState('prescription_result');
-      refetchHistory();
-    } catch {
-      setViewState('input');
-      Alert.alert('Analysis Failed', 'Could not analyze prescription. Please try again.');
-    }
+    setPhoto(uri);
+    setViewState('review');
+    setFeedback('');
   };
 
   const handleReset = () => {
     clearCurrent();
+    setFeedback('');
     setViewState('input');
     setManualQuery('');
     setScannedBarcode('');
@@ -125,16 +115,26 @@ export default function MedicationScreen() {
     setPrescriptionNotes('');
   };
 
+  if (viewState === 'review') return <SafeAreaView edges={['left', 'right']} style={{ flex: 1, backgroundColor: Colors.bgDark }}><ScrollView contentContainerStyle={{ padding: 20, maxWidth: 800, width: '100%', alignSelf: 'center' }} keyboardShouldPersistTaps="handled"><DocumentReview uri={photo} initialNames={prescriptionNotes} box={mode === 'box'} onCancel={handleReset} onConfirm={async (names, rawText, fromOcr) => {
+    if (mode === 'box') {
+      await searchByName(names); setDocumentWasOcr(fromOcr); setViewState('result');
+    } else {
+      const result = await medicationService.analyzePrescription(photo, doctorName, names, undefined, { rawText, fromOcr });
+      useMedicationStore.setState({ currentPrescription: result });
+      setViewState('prescription_result'); void refetchHistory();
+    }
+  }} /></ScrollView></SafeAreaView>;
+
   // ── Loading state ─────────────────────────────────────────
   if (viewState === 'loading') {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bgDark, justifyContent: 'center', alignItems: 'center' }}>
+      <SafeAreaView edges={["left", "right"]} style={{ flex: 1, backgroundColor: Colors.bgDark, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={Colors.primary} />
         <Text style={{ color: Colors.textSecondary, marginTop: 16, fontSize: 16 }}>
-          {mode === 'prescription' ? 'Analyzing prescription with AI...' : 'Fetching drug information...'}
+          {mode === 'prescription' ? 'Looking up confirmed medicine names...' : 'Fetching drug information...'}
         </Text>
         <Text style={{ color: Colors.textMuted, marginTop: 8, fontSize: 13 }}>
-          {mode === 'prescription' ? 'This may take 15-30 seconds' : 'Checking OpenFDA database...'}
+          {mode === 'prescription' ? 'Checking available label references' : 'Checking OpenFDA database...'}
         </Text>
       </SafeAreaView>
     );
@@ -144,7 +144,7 @@ export default function MedicationScreen() {
   if (viewState === 'scanning') {
     if (!cameraPermission?.granted) {
       return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bgDark, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+        <SafeAreaView edges={["left", "right"]} style={{ flex: 1, backgroundColor: Colors.bgDark, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <Text style={{ color: Colors.textPrimary, fontSize: 18, fontWeight: '700', marginBottom: 12, textAlign: 'center' }}>
             Camera Permission Required
           </Text>
@@ -216,8 +216,7 @@ export default function MedicationScreen() {
 
   // ── Drug result view ──────────────────────────────────────
   if (viewState === 'result' && currentDrug) {
-    return <DrugResultView drug={currentDrug} onBack={handleReset} onSave={() => {
-      Alert.alert('Saved', 'Drug added to your medication history.');
+    return <DrugResultView drug={currentDrug} fromOcr={mode === 'box' && documentWasOcr} barcode={mode === 'barcode' ? scannedBarcode : undefined} onBack={handleReset} onSave={() => {
       refetchHistory();
     }} />;
   }
@@ -225,14 +224,14 @@ export default function MedicationScreen() {
   // ── Prescription result view ──────────────────────────────
   if (viewState === 'prescription_result' && currentPrescription) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bgDark }}>
+      <SafeAreaView edges={["left", "right"]} style={{ flex: 1, backgroundColor: Colors.bgDark }}>
         <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
           <TouchableOpacity onPress={handleReset} style={{ marginBottom: 16 }}>
             <Text style={{ color: Colors.primary }}>← Back</Text>
           </TouchableOpacity>
 
           <Text style={{ color: Colors.textPrimary, fontSize: 22, fontWeight: '800', marginBottom: 4 }}>
-            📄 Prescription Analysis
+            Prescription reference review
           </Text>
           {currentPrescription.doctorName && (
             <Text style={{ color: Colors.textSecondary, fontSize: 14, marginBottom: 16 }}>
@@ -240,12 +239,13 @@ export default function MedicationScreen() {
             </Text>
           )}
 
+          <Card style={{ marginBottom: 12 }}><Text style={{ color: Colors.warning, fontWeight: '700' }}>Prescription not verified</Text><Text style={{ color: Colors.textSecondary, marginTop: 6 }}>Your doctor or pharmacist must confirm dose, interactions and suitability. Pakistan registration is not verified.</Text></Card>
           {/* Safety warning banner */}
           {currentPrescription.hasSafetyWarnings && (
             <View style={{ backgroundColor: `${Colors.danger}15`, borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: `${Colors.danger}40` }}>
               <Text style={{ color: Colors.danger, fontWeight: '700', marginBottom: 4 }}>⚠️ Safety Warning Detected</Text>
               <Text style={{ color: Colors.textSecondary, fontSize: 13 }}>
-                This prescription has potential drug interactions or warnings. Consult your doctor.
+                The reference labels contain warnings. This is not a complete interaction or suitability check. Consult your doctor.
               </Text>
             </View>
           )}
@@ -253,7 +253,7 @@ export default function MedicationScreen() {
           {/* AI Analysis */}
           {currentPrescription.aiAnalysis && (
             <Card style={{ marginBottom: 12 }}>
-              <Text style={{ color: Colors.primary, fontWeight: '700', marginBottom: 6 }}>🤖 AI Safety Analysis</Text>
+              <Text style={{ color: Colors.primary, fontWeight: '700', marginBottom: 6 }}>Prescription review status</Text>
               <Text style={{ color: Colors.textSecondary, fontSize: 13, lineHeight: 20 }}>
                 {currentPrescription.aiAnalysis}
               </Text>
@@ -263,7 +263,7 @@ export default function MedicationScreen() {
           {/* Interactions */}
           {currentPrescription.interactions.length > 0 && (
             <Card style={{ marginBottom: 12, borderColor: `${Colors.warning}40` }}>
-              <Text style={{ color: Colors.warning, fontWeight: '700', marginBottom: 8 }}>⚡ Drug Interactions</Text>
+              <Text style={{ color: Colors.warning, fontWeight: '700', marginBottom: 8 }}>Label interaction information</Text>
               {currentPrescription.interactions.map((item, i) => (
                 <Text key={i} style={{ color: Colors.textSecondary, fontSize: 13, marginBottom: 4 }}>• {item}</Text>
               ))}
@@ -283,7 +283,7 @@ export default function MedicationScreen() {
                   borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
                 }}>
                   <Text style={{ fontSize: 11, fontWeight: '700', color: med.isKnownDrug ? Colors.success : Colors.warning }}>
-                    {med.isKnownDrug ? 'Verified ✓' : 'Unknown'}
+                    {med.isKnownDrug ? 'Label found' : 'Unknown'}
                   </Text>
                 </View>
               </View>
@@ -310,16 +310,16 @@ export default function MedicationScreen() {
 
   // ── Main input view ───────────────────────────────────────
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bgDark }}>
+    <SafeAreaView edges={["left", "right"]} style={{ flex: 1, backgroundColor: Colors.bgDark }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView
-          contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+          contentContainerStyle={{ padding: 20, paddingBottom: 40, width: '100%', maxWidth: 800, alignSelf: 'center' }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           {/* Header */}
           <LinearGradient
-            colors={['#1E293B', '#0F172A']}
+            colors={['#FFFFFF', '#F6F7F9']}
             style={{ borderRadius: 20, padding: 20, marginBottom: 20 }}
           >
             <Text style={{ color: Colors.textPrimary, fontSize: 24, fontWeight: '800' }}>
@@ -330,11 +330,14 @@ export default function MedicationScreen() {
             </Text>
           </LinearGradient>
 
+          {!!feedback && <Text accessibilityRole="alert" style={{ color: Colors.danger, lineHeight: 21, marginBottom: 20 }}>{feedback}</Text>}
+
           {/* Mode selector */}
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
             {([
               { key: 'manual', icon: '⌨️', label: 'Search' },
               { key: 'barcode', icon: '📷', label: 'Barcode' },
+              { key: 'box', icon: '🔎', label: 'Box text' },
               { key: 'prescription', icon: '📄', label: 'Prescription' },
             ] as { key: InputMode; icon: string; label: string }[]).map((m) => (
               <TouchableOpacity
@@ -387,7 +390,7 @@ export default function MedicationScreen() {
                 )}
               </View>
               <Text style={{ color: Colors.textMuted, fontSize: 11, marginTop: 6 }}>
-                Searches OpenFDA database + Pakistan drug registry
+                US label reference from OpenFDA · Pakistan registration is not verified
               </Text>
               <Button
                 title="Search Drug"
@@ -443,13 +446,14 @@ export default function MedicationScreen() {
                   <TouchableOpacity
                     onPress={async () => {
                       if (!scannedBarcode.trim()) return;
+                      setFeedback('');
                       setViewState('loading');
                       try {
                         await searchByBarcode(scannedBarcode.trim());
                         setViewState('result');
-                      } catch {
+                      } catch (e) {
                         setViewState('input');
-                        Alert.alert('Not Found', 'Barcode not found in drug database.');
+                        setFeedback(`${errorMessage(e)} Try the exact medicine name if this barcode is unknown.`);
                       }
                     }}
                     style={{
@@ -465,10 +469,10 @@ export default function MedicationScreen() {
           )}
 
           {/* Prescription */}
-          {mode === 'prescription' && (
+          {(mode === 'prescription' || mode === 'box') && (
             <Card style={{ marginBottom: 16 }}>
               <Text style={{ color: Colors.textPrimary, fontWeight: '700', fontSize: 16, marginBottom: 14 }}>
-                📄 Prescription Scanner
+                {mode === 'box' ? 'Medicine box text' : 'Prescription Scanner'}
               </Text>
 
               {/* Doctor name */}
@@ -511,11 +515,11 @@ export default function MedicationScreen() {
               </View>
 
               <Text style={{ color: Colors.textMuted, fontSize: 12, lineHeight: 17, marginBottom: 16 }}>
-                📌 Tip: Type drug names above for best results. Photo helps doctor name detection. AI will analyze drug interactions and safety.
+                Take a clear photo of printed English text. Review extracted text and enter exact medicine names before lookup. Handwriting is not verified.
               </Text>
 
               <Button
-                title="📷 Take Prescription Photo"
+                title="Take photo for review"
                 onPress={handlePrescriptionCapture}
                 fullWidth
               />
@@ -523,10 +527,12 @@ export default function MedicationScreen() {
                 title="🖼️ Choose from Gallery"
                 variant="outline"
                 onPress={async () => {
+                  try {
                   const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.9 });
                   if (!result.canceled && result.assets[0]?.uri) {
                     await runPrescriptionAnalysis(result.assets[0].uri);
                   }
+                  } catch (e) { setFeedback(errorMessage(e)); }
                 }}
                 fullWidth
                 style={{ marginTop: 8 }}
@@ -590,33 +596,41 @@ export default function MedicationScreen() {
 
 // ── Drug result component ─────────────────────────────────────
 function DrugResultView({
-  drug, onBack, onSave,
-}: { drug: DrugInfo; onBack: () => void; onSave: () => void }) {
-  const isSaved = React.useRef(false);
+  drug, barcode, fromOcr, onBack, onSave,
+}: { drug: DrugInfo; barcode?: string; fromOcr?: boolean; onBack: () => void; onSave: () => void }) {
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const handleSave = async () => {
-    if (isSaved.current) return;
-    isSaved.current = true;
+    if (saved || saving) return;
+    setSaving(true); setSaveError('');
     try {
       await medicationService.saveMedication({
         drugName: drug.brandName,
         genericName: drug.genericName,
         dosageForm: drug.dosageForm,
         strength: drug.strength,
-        inputMethod: 'ManualEntry',
+        barcode,
+        inputMethod: barcode ? 'BarcodeScanner' : fromOcr ? 'OcrScan' : 'ManualEntry',
       });
       onSave();
-    } catch { /* silent */ }
+      setSaved(true);
+    } catch (e) { setSaveError(errorMessage(e)); } finally { setSaving(false); }
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bgDark }}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+    <SafeAreaView edges={["left", "right"]} style={{ flex: 1, backgroundColor: Colors.bgDark }}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32, width: '100%', maxWidth: 800, alignSelf: 'center' }} showsVerticalScrollIndicator={false}>
         <TouchableOpacity onPress={onBack} style={{ marginBottom: 16 }}>
           <Text style={{ color: Colors.primary }}>← Back</Text>
         </TouchableOpacity>
 
         {/* Drug header */}
+        <Card style={{ marginBottom: 12 }}><Text style={{ color: Colors.warning, fontWeight: '700' }}>{drug.source === 'NotFound' ? 'No exact label match' : 'Reference information — identity and suitability require review'}</Text><Text style={{ color: Colors.textSecondary, marginTop: 6, lineHeight: 20 }}>This lookup does not verify your medicine, dose, prescription or Pakistan registration.</Text>
+          {drug.referenceUrl?.startsWith('https://dailymed.nlm.nih.gov/') && <TouchableOpacity onPress={() => { void Linking.openURL(drug.referenceUrl!); }} style={{ marginTop: 10 }}><Text style={{ color: Colors.primary }}>Open original DailyMed label</Text></TouchableOpacity>}
+          {drug.retrievedAt && <Text style={{ color: Colors.textMuted, marginTop: 6 }}>Reference retrieved: {format(new Date(drug.retrievedAt), 'MMM d, yyyy')}</Text>}
+        </Card>
         <Card style={{ marginBottom: 12 }}>
           <Text style={{ color: Colors.textPrimary, fontSize: 22, fontWeight: '800' }}>
             {drug.brandName}
@@ -684,7 +698,7 @@ function DrugResultView({
         {/* Interactions */}
         {drug.interactions.length > 0 && (
           <Card style={{ marginBottom: 10 }}>
-            <Text style={{ color: Colors.warning, fontWeight: '700', marginBottom: 8 }}>⚡ Drug Interactions</Text>
+            <Text style={{ color: Colors.warning, fontWeight: '700', marginBottom: 8 }}>Label interaction information</Text>
             {drug.interactions.slice(0, 3).map((d, i) => (
               <Text key={i} style={{ color: Colors.textSecondary, fontSize: 13, marginBottom: 4 }}>• {d}</Text>
             ))}
@@ -706,7 +720,9 @@ function DrugResultView({
 
         {/* Actions */}
         <View style={{ gap: 10 }}>
-          <Button title="💾 Save to History" onPress={handleSave} fullWidth />
+          {!!saveError && <Text accessibilityRole="alert" style={{ color: Colors.danger }}>{saveError}</Text>}
+          {saved && <Text style={{ color: Colors.success }}>Saved to your medication history.</Text>}
+          <Button title={saved ? 'Saved' : 'Save to history'} disabled={saved} loading={saving} onPress={handleSave} fullWidth />
           <Button title="Search Another Drug" variant="outline" onPress={onBack} fullWidth />
         </View>
       </ScrollView>

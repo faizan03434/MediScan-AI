@@ -18,10 +18,10 @@ interface ButtonProps extends TouchableOpacityProps {
   fullWidth?: boolean;
 }
 
-const sizeStyles: Record<string, { container: string; text: string }> = {
-  sm: { container: 'px-4 py-2 rounded-xl',   text: 'text-sm font-semibold' },
-  md: { container: 'px-6 py-3.5 rounded-2xl', text: 'text-base font-semibold' },
-  lg: { container: 'px-8 py-4 rounded-2xl',   text: 'text-lg font-bold' },
+const sizeStyles = {
+  sm: { paddingVertical: 10, fontSize: 13 },
+  md: { paddingVertical: 14, fontSize: 16 },
+  lg: { paddingVertical: 18, fontSize: 18 },
 };
 
 export default function Button({
@@ -41,6 +41,9 @@ export default function Button({
   if (variant === 'primary') {
     return (
       <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        accessibilityState={{ disabled: !!isDisabled, busy: loading }}
         disabled={isDisabled}
         style={[{ opacity: isDisabled ? 0.6 : 1 }, style as ViewStyle]}
         activeOpacity={0.85}
@@ -50,14 +53,14 @@ export default function Button({
           colors={[Colors.primary, Colors.primaryDark]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={{ borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 14, width: fullWidth ? '100%' : undefined }}
+          style={{ borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, paddingVertical: sizes.paddingVertical, width: fullWidth ? '100%' : undefined }}
         >
           {loading ? (
             <ActivityIndicator color={Colors.white} size="small" />
           ) : (
             <>
               {icon}
-              <Text style={{ color: Colors.white, fontWeight: '700', fontSize: 16, marginLeft: icon ? 8 : 0 }}>
+              <Text style={{ color: Colors.white, fontWeight: '700', fontSize: sizes.fontSize, marginLeft: icon ? 8 : 0 }}>
                 {title}
               </Text>
             </>
@@ -78,6 +81,9 @@ export default function Button({
 
   return (
     <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: !!isDisabled, busy: loading }}
       disabled={isDisabled}
       activeOpacity={0.8}
       style={[{
@@ -86,7 +92,7 @@ export default function Button({
         borderColor: vs.border,
         borderRadius: 16,
         paddingHorizontal: 24,
-        paddingVertical: 14,
+        paddingVertical: sizes.paddingVertical,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',

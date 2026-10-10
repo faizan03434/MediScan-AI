@@ -42,25 +42,18 @@ public class DrugDataService : IDrugDataService
         var now = DateTime.UtcNow;
         var cached = await _db.DrugCaches
             .Where(d => d.NormalizedName == normalized &&
-                       (d.ExpiresAt == null || d.ExpiresAt > now))
+                       d.ExpiresAt > now && d.Source == "OpenFDA exact name")
             .OrderByDescending(d => d.FetchedAt)
             .FirstOrDefaultAsync();
 
         if (cached != null)
         {
             _logger.LogInformation("Drug cache hit for: {Name}", drugName);
-            return MapCacheToDto(cached, "Cache");
+            return MapCacheToDto(cached, cached.Source + " (cached)");
         }
 
-        // 2. Pakistan is default — try OpenFDA (best free API) + Pakistan DAP
-        DrugInfoDto? result = null;
-
-        // Always try OpenFDA (it covers international brands too)
-        result = await FetchFromOpenFdaByNameAsync(drugName);
-
-        // If not found in OpenFDA, try Pakistan DAP scrape/fallback
-        if (result == null)
-            result = await FetchFromPakistanDapAsync(drugName);
+        // A broad full-text hit must never be presented as this medicine.
+        var result = await FetchFromOpenFdaByNameAsync(drugName);
 
         // 3. Cache the result
         if (result != null)
@@ -72,15 +65,17 @@ public class DrugDataService : IDrugDataService
     // ─────────────────────────────────────────────────────────
     public async Task<DrugInfoDto?> FetchByBarcodeAsync(string barcode)
     {
+        if (!System.Text.RegularExpressions.Regex.IsMatch(barcode, @"^\d{4,5}-\d{3,4}(-\d{1,2})?$")) return null;
+        // Only explicitly formatted US NDC identifiers are mapped; EAN/QR needs a separate verified registry.
         // Check cache by barcode
         var barcodeNow = DateTime.UtcNow;
         var cached = await _db.DrugCaches
             .Where(d => d.Barcode == barcode &&
-                       (d.ExpiresAt == null || d.ExpiresAt > barcodeNow))
+                       d.ExpiresAt > barcodeNow && d.Source == "OpenFDA-NDC")
             .FirstOrDefaultAsync();
 
         if (cached != null)
-            return MapCacheToDto(cached, "Cache");
+            return MapCacheToDto(cached, cached.Source + " (cached)");
 
         // OpenFDA supports NDC (US barcodes) lookup
         var result = await FetchFromOpenFdaByBarcodeAsync(barcode);
@@ -98,14 +93,14 @@ public class DrugDataService : IDrugDataService
         {
             var apiKey = _config["OpenFDA:ApiKey"];
             var keyParam = string.IsNullOrEmpty(apiKey) ? "" : $"&api_key={apiKey}";
-            var encoded = Uri.EscapeDataString(drugName);
-            var url = $"{OpenFdaBase}/label.json?search=openfda.brand_name:\"{encoded}\"+openfda.generic_name:\"{encoded}\"&limit=1{keyParam}";
+            var encoded = Uri.EscapeDataString(drugName.Replace("\\", "\\\\").Replace("\"", "\\\""));
+            var url = $"{OpenFdaBase}/label.json?search=openfda.brand_name.exact:\"{encoded}\"+openfda.generic_name.exact:\"{encoded}\"&limit=1{keyParam}";
 
             var response = await _http.GetAsync(url);
             if (!response.IsSuccessStatusCode) return null;
 
             var json = await response.Content.ReadAsStringAsync();
-            return ParseOpenFdaLabel(json, "OpenFDA");
+            return ParseOpenFdaLabel(json, "OpenFDA exact name", drugName);
         }
         catch (Exception ex)
         {
@@ -122,13 +117,13 @@ public class DrugDataService : IDrugDataService
             var apiKey = _config["OpenFDA:ApiKey"];
             var keyParam = string.IsNullOrEmpty(apiKey) ? "" : $"&api_key={apiKey}";
             var encoded = Uri.EscapeDataString(barcode);
-            var url = $"{OpenFdaBase}/ndc.json?search=product_ndc:\"{encoded}\"+package_ndc:\"{encoded}\"&limit=1{keyParam}";
+            var url = $"{OpenFdaBase}/ndc.json?search=product_ndc:\"{encoded}\"+packaging.package_ndc:\"{encoded}\"&limit=1{keyParam}";
 
             var response = await _http.GetAsync(url);
             if (!response.IsSuccessStatusCode) return null;
 
             var json = await response.Content.ReadAsStringAsync();
-            return ParseOpenFdaNdc(json);
+            return ParseOpenFdaNdc(json, barcode);
         }
         catch (Exception ex)
         {
@@ -137,46 +132,8 @@ public class DrugDataService : IDrugDataService
         }
     }
 
-    // ── Pakistan DAP ─────────────────────────────────────────
-    // Pakistan Drug Authority doesn't have a public REST API.
-    // We use a common approach: query OpenFDA with the name and
-    // flag it as Pakistani if manufacturer is a Pakistani company.
-    // In future this can be replaced with a scraped/cached DAP DB.
-    private async Task<DrugInfoDto?> FetchFromPakistanDapAsync(string drugName)
-    {
-        try
-        {
-            // Try a broader OpenFDA search
-            var apiKey = _config["OpenFDA:ApiKey"];
-            var keyParam = string.IsNullOrEmpty(apiKey) ? "" : $"&api_key={apiKey}";
-            var encoded = Uri.EscapeDataString(drugName);
-            var url = $"{OpenFdaBase}/label.json?search={encoded}&limit=1{keyParam}";
-
-            var response = await _http.GetAsync(url);
-            if (!response.IsSuccessStatusCode) return null;
-
-            var json = await response.Content.ReadAsStringAsync();
-            var dto = ParseOpenFdaLabel(json, "PakistanDAP/OpenFDA");
-
-            // Append Pakistan-specific guidance
-            if (dto != null)
-            {
-                dto.Warnings.Add("Pakistan: Always purchase from registered pharmacies (DAP licensed).");
-                dto.Warnings.Add("Check DAP registration at https://www.dap.gov.pk before purchase.");
-                dto.CountryOfOrigin = "PK";
-            }
-
-            return dto;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Pakistan DAP fallback failed for: {Name}", drugName);
-            return null;
-        }
-    }
-
     // ── Parse OpenFDA /label response ─────────────────────────
-    private static DrugInfoDto? ParseOpenFdaLabel(string json, string source)
+    public static DrugInfoDto? ParseOpenFdaLabel(string json, string source, string? requestedName = null)
     {
         try
         {
@@ -186,10 +143,19 @@ public class DrugDataService : IDrugDataService
 
             var item = results[0]!;
             var openfda = item["openfda"];
+            if (requestedName != null && !new[] { openfda?["brand_name"], openfda?["generic_name"] }
+                .OfType<JsonArray>().SelectMany(a => a).Any(n => n != null && NormalizeName(n.GetValue<string>()) == NormalizeName(requestedName)))
+                return null;
 
             var brandName = GetFirstString(openfda?["brand_name"]) ??
                             GetFirstString(item["drug_name"]) ?? "Unknown";
             var genericName = GetFirstString(openfda?["generic_name"]);
+            if (requestedName != null) {
+                if (openfda?["brand_name"] is JsonArray brands)
+                    brandName = brands.FirstOrDefault(n => n != null && NormalizeName(n.GetValue<string>()) == NormalizeName(requestedName))?.GetValue<string>() ?? brandName;
+                if (openfda?["generic_name"] is JsonArray generics)
+                    genericName = generics.FirstOrDefault(n => n != null && NormalizeName(n.GetValue<string>()) == NormalizeName(requestedName))?.GetValue<string>() ?? genericName;
+            }
 
             var dto = new DrugInfoDto
             {
@@ -201,6 +167,8 @@ public class DrugDataService : IDrugDataService
                 Indication   = GetFirstString(item["indications_and_usage"]) ?? GetFirstString(item["purpose"]),
                 StorageInfo  = GetFirstString(item["storage_and_handling"]) ?? GetFirstString(item["how_supplied"]),
                 Source       = source,
+                ReferenceUrl = item["set_id"]?.GetValue<string>() is { } setId ? $"https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid={Uri.EscapeDataString(setId)}" : null,
+                RetrievedAt = DateTime.UtcNow,
             };
 
             // Side effects
@@ -224,6 +192,7 @@ public class DrugDataService : IDrugDataService
                 dto.Contraindications = ChunkText(contra, 120);
 
             dto.HasSafetyWarning = dto.Warnings.Count > 0 || dto.Contraindications.Count > 0;
+            dto.Warnings.Add("Exact name match is a US label reference. Strength, dosage form, interactions, clinical suitability and Pakistan registration still need verification.");
 
             return dto;
         }
@@ -234,7 +203,7 @@ public class DrugDataService : IDrugDataService
     }
 
     // ── Parse OpenFDA /ndc response ───────────────────────────
-    private static DrugInfoDto? ParseOpenFdaNdc(string json)
+    private static DrugInfoDto? ParseOpenFdaNdc(string json, string requestedNdc)
     {
         try
         {
@@ -243,7 +212,8 @@ public class DrugDataService : IDrugDataService
             if (results == null || results.Count == 0) return null;
 
             var item = results[0]!;
-
+            var packageMatches = item["packaging"] is JsonArray packages && packages.Any(p => p?["package_ndc"]?.GetValue<string>() == requestedNdc);
+            if (item["product_ndc"]?.GetValue<string>() != requestedNdc && !packageMatches) return null;
             return new DrugInfoDto
             {
                 BrandName    = item["brand_name"]?.GetValue<string>() ?? "Unknown",
@@ -251,6 +221,7 @@ public class DrugDataService : IDrugDataService
                 Manufacturer = item["labeler_name"]?.GetValue<string>(),
                 DosageForm   = item["dosage_form"]?.GetValue<string>(),
                 Source       = "OpenFDA-NDC",
+                RetrievedAt  = DateTime.UtcNow,
                 Warnings     = new List<string> { "Check OpenFDA label for full prescribing information." },
             };
         }
@@ -299,6 +270,7 @@ public class DrugDataService : IDrugDataService
             Indication   = cache.Indication,
             StorageInfo  = cache.StorageInfo,
             Source       = source,
+            RetrievedAt  = cache.FetchedAt,
             CountryOfOrigin = cache.CountryOfOrigin,
         };
 
@@ -312,6 +284,13 @@ public class DrugDataService : IDrugDataService
             dto.Contraindications = JsonSerializer.Deserialize<List<string>>(cache.ContraindicationsJson) ?? new();
 
         dto.HasSafetyWarning = dto.Warnings.Count > 0 || dto.Contraindications.Count > 0;
+        if (!string.IsNullOrEmpty(cache.RawResponseJson)) {
+            try {
+                var original = JsonSerializer.Deserialize<DrugInfoDto>(cache.RawResponseJson);
+                dto.ReferenceUrl = original?.ReferenceUrl;
+                dto.HasSafetyWarning = original?.HasSafetyWarning ?? dto.HasSafetyWarning;
+            } catch (JsonException) { }
+        }
         return dto;
     }
 
@@ -338,6 +317,7 @@ public class DrugDataService : IDrugDataService
                 WarningsJson         = JsonSerializer.Serialize(dto.Warnings),
                 InteractionsJson     = JsonSerializer.Serialize(dto.Interactions),
                 ContraindicationsJson = JsonSerializer.Serialize(dto.Contraindications),
+                RawResponseJson      = JsonSerializer.Serialize(dto),
                 FetchedAt            = DateTime.UtcNow,
                 ExpiresAt            = DateTime.UtcNow.AddDays(7),
             };

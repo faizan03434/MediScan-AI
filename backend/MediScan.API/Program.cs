@@ -12,6 +12,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using MediScan.API.Services;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 
 // ─────────────────────────────────────────────
 // Bootstrap Serilog early
@@ -23,6 +26,10 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     var builder = WebApplication.CreateBuilder(args);
+    // Local secrets are deliberately excluded from version control. Environment overrides win.
+    builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
+        .AddInMemoryCollection(EnvFileConfiguration.Read(Path.Combine(builder.Environment.ContentRootPath, ".env")))
+        .AddEnvironmentVariables();
 
     // ─── Serilog ───────────────────────────────
     builder.Host.UseSerilog((ctx, lc) => lc
@@ -77,6 +84,13 @@ try
     })
     .AddJwtBearer(options =>
     {
+        options.Events = new JwtBearerEvents { OnTokenValidated = async context => {
+            var userManager = context.HttpContext.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+            var id = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var user = id == null ? null : await userManager.FindByIdAsync(id);
+            if (user?.IsActive != true || context.Principal?.FindFirst("sst")?.Value != user.SecurityStamp)
+                context.Fail("Session invalidated. Sign in again.");
+        }};
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -91,6 +105,18 @@ try
     });
 
     builder.Services.AddAuthorization();
+    builder.Services.AddRateLimiter(options => {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    });
+    builder.Services.AddSingleton(TimeProvider.System);
+    builder.Services.AddSingleton<EmailOtpStore>();
+    builder.Services.AddScoped<IVerificationEmailSender, SmtpEmailSender>();
+    builder.Services.AddSingleton<IGoogleIdentityVerifier, GoogleIdentityVerifier>();
+    builder.Services.AddScoped<AccountAccessService>();
 
     // ─── CORS ──────────────────────────────────
     builder.Services.AddCors(options =>
@@ -99,7 +125,11 @@ try
         {
             var origins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
                           ?? new[] { "http://localhost:19006", "http://localhost:3000" };
-            policy.WithOrigins(origins)
+            if (builder.Environment.IsDevelopment())
+                policy.SetIsOriginAllowed(origin => Uri.TryCreate(origin, UriKind.Absolute, out var uri)
+                    && uri.Scheme == "http" && uri.Port == 8081);
+            else policy.WithOrigins(origins);
+            policy
                   .AllowAnyHeader()
                   .AllowAnyMethod()
                   .AllowCredentials();
@@ -107,6 +137,7 @@ try
     });
 
     // ─── Application Services ──────────────────
+    builder.Services.AddHttpClient<IDocumentOcrService, DocumentOcrService>(client => client.Timeout = TimeSpan.FromSeconds(90));
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IAuditService, AuditService>();
     builder.Services.AddScoped<IDoctorService, DoctorService>();
@@ -157,6 +188,8 @@ try
         {
             options.JsonSerializerOptions.PropertyNamingPolicy =
                 System.Text.Json.JsonNamingPolicy.CamelCase;
+            options.JsonSerializerOptions.Converters.Add(
+                new System.Text.Json.Serialization.JsonStringEnumConverter());
         });
 
     // ─── Swagger ───────────────────────────────
@@ -217,7 +250,7 @@ try
     app.UseSerilogRequestLogging();
 
     // Serve local uploaded files in development
-    app.UseStaticFiles();
+    // Medical uploads are served only by the authenticated, owner-scoped MediaController.
 
     if (app.Environment.IsDevelopment())
     {
@@ -225,10 +258,11 @@ try
         app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "MediScan AI v1"));
     }
 
-    app.UseHttpsRedirection();
+    if (!app.Environment.IsDevelopment()) app.UseHttpsRedirection();
     app.UseCors("MediScanPolicy");
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseRateLimiter();
     app.MapControllers();
 
     Log.Information("🚀 MediScan AI API starting on {Environment}", app.Environment.EnvironmentName);

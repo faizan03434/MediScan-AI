@@ -1,0 +1,18 @@
+const fs = require('fs');
+const path = require('path');
+const { spawnSync } = require('child_process');
+const root = path.resolve(__dirname, '..');
+const QRCode = require(path.join(root, 'apps/mobile/node_modules/qrcode-terminal/vendor/QRCode'));
+const level = require(path.join(root, 'apps/mobile/node_modules/qrcode-terminal/vendor/QRCode/QRErrorCorrectLevel'));
+const host = process.argv[2];
+if (!host || !/^[a-zA-Z0-9.:-]+$/.test(host)) throw new Error('Pass the LAN IP address.');
+const url = `http://${host}:5000/preview`;
+const qr = new QRCode(-1, level.M);
+qr.addData(url); qr.make();
+const output = path.join(root, '.preview');
+fs.mkdirSync(output, { recursive: true });
+fs.writeFileSync(path.join(output, 'qr-matrix.json'), JSON.stringify(qr.modules));
+fs.writeFileSync(path.join(output, 'mobile-preview-url.txt'), url);
+const result = spawnSync(path.join(root, 'ai-server/.venv/Scripts/python.exe'), [path.join(__dirname, 'render_preview_qr.py'), path.join(output, 'qr-matrix.json'), path.join(output, 'mobile-qr.png')], { encoding: 'utf8' });
+if (result.status !== 0) throw new Error(result.stderr || 'QR rendering failed');
+console.log(`Android / iPhone QR: ${url}\nImage: ${path.join(output, 'mobile-qr.png')}`);

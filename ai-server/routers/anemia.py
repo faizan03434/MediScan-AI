@@ -20,7 +20,6 @@ from utils.image_utils import (
     pil_from_bytes,
     validate_image_size,
     enhance_image,
-    pil_to_tensor,
 )
 from utils.response_utils import build_response, not_detected_response, DetectionResponse
 from utils.auth_utils import verify_api_key
@@ -82,7 +81,7 @@ async def detect_anemia(
     pil_img = enhance_image(pil_from_bytes(raw))
 
     # ── Step 1: YOLOv8 ROI detection ──────────────────────────
-    import cv2, io
+    import cv2
     img_array = np.array(pil_img)
     img_bgr = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
 
@@ -113,7 +112,6 @@ async def detect_anemia(
     # When custom EfficientNet model is trained, it replaces this heuristic
     confidence = pallor  # Placeholder until model is trained
 
-    threshold = settings.anemia_confidence_threshold
 
     if pallor > 0.60:
         result = "Anemia Likely Detected"

@@ -31,6 +31,7 @@ httpx==0.27.2
 aiofiles==24.1.0
 
 # Image processing
+easyocr==1.7.2              # Local printed text extraction; no cloud PHI upload
 imutils==0.5.4
 
 # Logging & Monitoring

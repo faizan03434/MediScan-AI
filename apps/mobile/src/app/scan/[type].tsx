@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ScanCamera from '../../components/camera/ScanCamera';
 import ConfidenceBadge from '../../components/common/ConfidenceBadge';
 import Card from '../../components/common/Card';
@@ -19,18 +19,21 @@ import {
 import { Colors } from '../../theme/colors';
 import { SCAN_MODULES, type ScanType, type ScanResult } from '../../types';
 import { format } from 'date-fns';
+import { pickScanPhoto } from '../../utils/pickScanPhoto';
 
-type ViewState = 'camera' | 'processing' | 'result';
+type ViewState = 'consent' | 'camera' | 'review' | 'processing' | 'result';
 
 export default function ScanScreen() {
   const { type } = useLocalSearchParams<{ type: string }>();
   const router = useRouter();
   const { submitScan } = useScanStore();
+  const queryClient = useQueryClient();
 
-  const [viewState, setViewState] = useState<ViewState>('camera');
+  const [viewState, setViewState] = useState<ViewState>('consent');
   const [capturedUri, setCapturedUri] = useState<string | null>(null);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [reminderSet, setReminderSet] = useState(false);
+  const [picking, setPicking] = useState(false);
 
   const module = SCAN_MODULES.find(m => m.id === type);
 
@@ -51,7 +54,7 @@ export default function ScanScreen() {
         setReminderSet(true);
       }
     })();
-  }, [scanResult?.id]);
+  }, [scanResult, reminderSet]);
 
   if (!module) {
     return (
@@ -66,23 +69,71 @@ export default function ScanScreen() {
     setViewState('processing');
     try {
       const result = await submitScan(module.id as ScanType, imageUri);
+      await queryClient.invalidateQueries({ queryKey: ['scanHistory'] });
+      await queryClient.invalidateQueries({ queryKey: ['recentScans'] });
       setScanResult(result);
       setViewState('result');
     } catch (err: unknown) {
       Alert.alert('Scan Failed', err instanceof Error ? err.message : 'Please try again.');
-      setViewState('camera');
+      setViewState('review');
     }
   };
+
+  const reviewPhoto = (imageUri: string) => {
+    setCapturedUri(imageUri);
+    setViewState('review');
+  };
+
+  const handleGallery = async () => {
+    if (picking) return;
+    setPicking(true);
+    try {
+      const uri = await pickScanPhoto({ allowsEditing: module.captureMode !== 'upload_only' });
+      if (uri) reviewPhoto(uri);
+    } catch (error: unknown) {
+      Alert.alert('Photo unavailable', error instanceof Error ? error.message : 'Please choose another photo.');
+    } finally {
+      setPicking(false);
+    }
+  };
+
+  if (viewState === 'consent') return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bgDark, padding: 24, justifyContent: 'center' }}>
+      <Text style={{ color: Colors.textPrimary, fontSize: 26, fontWeight: '800', marginBottom: 16 }}>{module.icon} {module.title}</Text>
+      <Text style={{ color: Colors.warning, fontSize: 17, fontWeight: '700', marginBottom: 16 }}>Research preview — disease detection is not validated</Text>
+      <Text style={{ color: Colors.textSecondary, fontSize: 16, lineHeight: 25, marginBottom: 24 }}>Continuing will upload and save your photo to the local development server under your account. This version provides photo history, not a diagnosis or a medicine recommendation. Use test photos. A clinician must assess symptoms and prescriptions.</Text>
+      {module.captureMode === 'upload_only' && <Text style={{ color: Colors.textPrimary, lineHeight: 24, marginBottom: 20 }}>{module.instructions}</Text>}
+      {module.captureMode !== 'upload_only' && <Button title="I agree — take a photo" onPress={() => setViewState('camera')} disabled={picking} fullWidth />}
+      <Button title={module.captureMode === 'upload_only' ? 'I agree — choose fundus image' : 'I agree — upload a saved photo'} variant={module.captureMode === 'upload_only' ? 'primary' : 'secondary'} onPress={handleGallery} loading={picking} fullWidth style={{ marginTop: 12 }} />
+      <Button title="Go back" variant="outline" onPress={() => router.back()} fullWidth style={{ marginTop: 12 }} />
+    </SafeAreaView>
+  );
 
   const handleRescan = () => {
     setCapturedUri(null);
     setScanResult(null);
     setReminderSet(false);
-    setViewState('camera');
+    setViewState('consent');
   };
 
   // Find previous scan of same type (excluding current)
   const previousScan = history?.scans.find(s => s.id !== scanResult?.id);
+
+  if (viewState === 'review' && capturedUri) return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bgDark }}>
+      <ScrollView contentContainerStyle={{ padding: 24, gap: 16 }}>
+        <Text style={{ color: Colors.textPrimary, fontSize: 24, fontWeight: '800' }}>Review your photo</Text>
+        <Text style={{ color: Colors.textSecondary }}>{module.title} · {module.targetArea}</Text>
+        <Image source={{ uri: capturedUri }} style={{ width: '100%', height: 320, borderRadius: 16 }} resizeMode="contain" accessibilityLabel="Selected scan photo" />
+        <Text style={{ color: Colors.textSecondary, lineHeight: 22 }}>Check that the affected area is clear and well lit. This photo stays on your device until you select Upload and save. The current preview saves photo history and cannot determine a disease.</Text>
+        {module.captureMode === 'upload_only' && <Text style={{ color: Colors.textPrimary, lineHeight: 22 }}>{module.instructions} Image modality is not automatically verified in this preview.</Text>}
+        <Button title={module.captureMode === 'upload_only' ? 'Confirm fundus image and save' : 'Upload and save photo'} onPress={() => handleCapture(capturedUri)} disabled={picking} fullWidth />
+        <Button title="Choose another photo" variant="secondary" onPress={handleGallery} loading={picking} fullWidth />
+        {module.captureMode !== 'upload_only' && <Button title="Take a new photo" variant="outline" onPress={() => setViewState('camera')} disabled={picking} fullWidth />}
+        <Button title="Cancel" variant="ghost" onPress={() => { setCapturedUri(null); setViewState('consent'); }} disabled={picking} fullWidth />
+      </ScrollView>
+    </SafeAreaView>
+  );
 
   // ── Processing ────────────────────────────────────────────
   if (viewState === 'processing') {
@@ -96,13 +147,13 @@ export default function ScanScreen() {
         )}
         <ActivityIndicator size="large" color={module.color} />
         <Text style={{ color: Colors.textPrimary, fontSize: 18, fontWeight: '700', marginTop: 20, textAlign: 'center' }}>
-          Analyzing {module.title}...
+          Saving {module.title} photo...
         </Text>
         <Text style={{ color: Colors.textSecondary, fontSize: 14, marginTop: 8, textAlign: 'center' }}>
-          AI model is processing your scan
+          Uploading your photo to your private history
         </Text>
         <View style={{ flexDirection: 'row', gap: 6, marginTop: 24 }}>
-          {['Detecting', 'Classifying', 'GPT Analysis'].map((step, i) => (
+          {['Uploading', 'Checking image', 'Saving'].map((step, i) => (
             <View key={i} style={{ alignItems: 'center', gap: 4 }}>
               <View style={{
                 width: 8, height: 8, borderRadius: 4,
@@ -118,8 +169,6 @@ export default function ScanScreen() {
 
   // ── Result ────────────────────────────────────────────────
   if (viewState === 'result' && scanResult) {
-    const isPositive = scanResult.detectionResult?.toLowerCase().includes('detected') ||
-                       scanResult.detectionResult?.toLowerCase().includes('likely');
     const isUrgent   = scanResult.aiRecommendation?.includes('URGENT') ||
                        scanResult.aiRecommendation?.includes('⚠️');
 
@@ -159,7 +208,7 @@ export default function ScanScreen() {
                   {module.title} · {format(new Date(scanResult.createdAt), 'MMM d, h:mm a')}
                 </Text>
                 <Text style={{
-                  color: isUrgent ? Colors.danger : isPositive ? Colors.warning : Colors.success,
+                  color: isUrgent ? Colors.danger : Colors.warning,
                   fontSize: 15, fontWeight: '700', marginTop: 3,
                 }} numberOfLines={2}>
                   {scanResult.detectionResult ?? 'Analysis complete'}
@@ -280,8 +329,8 @@ export default function ScanScreen() {
   return (
     <ScanCamera
       module={module}
-      onCapture={handleCapture}
-      onClose={() => router.back()}
+      onCapture={reviewPhoto}
+      onClose={() => setViewState('consent')}
     />
   );
 }

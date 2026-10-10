@@ -16,7 +16,7 @@ from fastapi import APIRouter, UploadFile, File, Depends
 from ultralytics import YOLO
 
 from config import get_settings, Settings
-from utils.image_utils import pil_from_bytes, validate_image_size, enhance_image
+from utils.image_utils import pil_from_bytes, validate_image_size
 from utils.response_utils import build_response, not_detected_response, DetectionResponse
 from utils.auth_utils import verify_api_key
 
@@ -91,7 +91,6 @@ def _analyze_eye_colors(img_bgr: np.ndarray) -> dict:
     and pupil for opacity (cataract).
     """
     import cv2
-    hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
     rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
 
     mean_r = float(rgb[:, :, 0].mean())

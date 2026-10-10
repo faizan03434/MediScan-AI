@@ -2,7 +2,7 @@ name: 🔵 Backend CI — .NET API
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, 'codex/**']
     paths:
       - "backend/**"
       - ".github/workflows/ci-backend.yml"

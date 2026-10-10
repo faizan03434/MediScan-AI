@@ -50,6 +50,7 @@ export default function Input({
           <View style={{ marginRight: 10 }}>{leftIcon}</View>
         )}
         <TextInput
+          accessibilityLabel={label}
           style={[{
             flex: 1,
             color: Colors.textPrimary,

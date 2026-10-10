@@ -19,7 +19,8 @@ public class AiInferenceService : IAiInferenceService
         { ScanType.Posture,        "/api/v1/detect/posture" },
         { ScanType.EyeDisease,     "/api/v1/detect/eye" },
         { ScanType.Wound,          "/api/v1/detect/wound" },
-        { ScanType.TongueDiagnosis,"/api/v1/detect/tongue" }
+        { ScanType.TongueDiagnosis,"/api/v1/detect/tongue" },
+        { ScanType.Retina,         "/api/v1/detect/retina" }
     };
 
     public AiInferenceService(HttpClient httpClient, IConfiguration config)
@@ -67,6 +68,7 @@ public class AiInferenceService : IAiInferenceService
         public float Confidence { get; set; }
         public object? Details { get; set; }
         public string? Recommendation { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("next_scan_days")]
         public int? NextScanDays { get; set; }
     }
 }

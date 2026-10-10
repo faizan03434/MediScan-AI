@@ -1,10 +1,12 @@
 ﻿namespace MediScan.Tests;
 
-public class UnitTest1
+public class GoogleConfigurationTests
 {
     [Fact]
-    public void Test1()
+    public async Task MissingClientIdsRejectBeforeAnyGoogleExchange()
     {
-
+        var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build();
+        var verifier = new MediScan.API.Services.GoogleIdentityVerifier(config);
+        await Assert.ThrowsAsync<MediScan.API.Services.AuthConfigurationException>(() => verifier.VerifyAsync("untrusted-token"));
     }
 }

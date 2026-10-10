@@ -30,7 +30,7 @@ try:
     from PIL import Image
     from sklearn.metrics import (
         classification_report, confusion_matrix,
-        accuracy_score, roc_auc_score
+        accuracy_score
     )
     import matplotlib
     matplotlib.use("Agg")  # non-interactive backend

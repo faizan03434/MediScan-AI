@@ -1,4 +1,5 @@
 import api from './api';
+import { appendImage } from '../utils/upload';
 import type { ApiResponse } from '../types';
 
 export interface DrugInfo {
@@ -14,6 +15,8 @@ export interface DrugInfo {
   contraindications: string[];
   storageInfo?: string;
   source?: string;
+  referenceUrl?: string;
+  retrievedAt?: string;
   countryOfOrigin?: string;
   aiAnalysis?: string;
   hasSafetyWarning: boolean;
@@ -132,20 +135,20 @@ const medicationService = {
     doctorName?: string,
     notes?: string,
     prescribedDate?: string,
+    review?: { rawText: string; fromOcr: boolean },
   ): Promise<PrescriptionAnalysis> {
     const formData = new FormData();
-    const filename = imageUri.split('/').pop() ?? 'prescription.jpg';
-    const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : 'image/jpeg';
-
-    formData.append('image', { uri: imageUri, name: filename, type } as unknown as Blob);
+    await appendImage(formData, imageUri);
     if (doctorName) formData.append('doctorName', doctorName);
     if (notes) formData.append('notes', notes);
     if (prescribedDate) formData.append('prescribedDate', prescribedDate);
+    formData.append('inputConfirmed', 'true');
+    formData.append('fromOcr', String(review?.fromOcr ?? false));
+    if (review?.rawText) formData.append('ocrRawText', review.rawText);
 
     const { data } = await api.post<ApiResponse<PrescriptionAnalysis>>(
       '/medication/prescription', formData,
-      { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60_000 },
+      { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 180_000 },
     );
     if (!data.success || !data.data) throw new Error(data.message);
     return data.data;

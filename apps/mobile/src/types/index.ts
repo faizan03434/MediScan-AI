@@ -1,6 +1,7 @@
 // ============================================================
 // MediScan AI — Global Type Definitions
 // ============================================================
+import { Colors } from '../theme/colors';
 
 // ── Auth ──────────────────────────────────────────────────────
 export interface User {
@@ -31,7 +32,8 @@ export type ScanType =
   | 'Posture'
   | 'EyeDisease'
   | 'Wound'
-  | 'TongueDiagnosis';
+  | 'TongueDiagnosis'
+  | 'Retina';
 
 export type ScanStatus = 'Pending' | 'Processing' | 'Completed' | 'Failed';
 
@@ -98,60 +100,71 @@ export interface ScanModuleInfo {
   color: string;
   instructions: string;
   targetArea: string;
+  captureMode?: 'upload_only';
 }
 
 export const SCAN_MODULES: ScanModuleInfo[] = [
   {
+    id: 'Retina',
+    title: 'Retina / Fundus',
+    description: 'Upload a retinal camera photo for private history and clinician review',
+    icon: '🔬',
+    color: Colors.eye,
+    instructions: 'Choose a fundus photograph captured by a retinal camera or compatible retinal attachment. A normal phone photo of the outside of the eye is not a fundus image.',
+    targetArea: 'Retina (fundus photograph)',
+    captureMode: 'upload_only',
+  },
+  {
     id: 'Anemia',
     title: 'Anemia Detection',
-    description: 'Detect anemia via eye or nail pallor',
+    description: 'Record eye or nail photos for clinician review',
     icon: '🩸',
-    color: '#EF4444',
+    color: Colors.anemia,
     instructions: 'Pull down lower eyelid gently and point camera at inner eyelid.',
     targetArea: 'Lower eyelid or fingernail',
   },
   {
     id: 'SkinDisease',
     title: 'Skin Disease',
-    description: 'Detect eczema, fungal, acne & more',
+    description: 'Record skin photos for clinician review',
     icon: '🦠',
-    color: '#F59E0B',
+    color: Colors.skin,
     instructions: 'Point camera directly at the affected skin area. Ensure good lighting.',
     targetArea: 'Affected skin area',
   },
   {
     id: 'Posture',
     title: 'Posture & Scoliosis',
-    description: 'Analyze spine & body alignment',
+    description: 'Record posture photos for physiotherapy review',
     icon: '🦴',
-    color: '#8B5CF6',
+    color: Colors.posture,
     instructions: 'Stand 2-3 meters away, full body visible in frame. Face camera or stand sideways.',
     targetArea: 'Full body (front or side view)',
   },
   {
     id: 'EyeDisease',
     title: 'Eye Disease',
-    description: 'Detect cataract, jaundice, red eye',
+    description: 'Record eye photos for clinician review',
     icon: '👁️',
-    color: '#3B82F6',
+    color: Colors.eye,
     instructions: 'Open eye wide, camera ~20cm away. Use natural lighting.',
     targetArea: 'Eye (front-facing)',
   },
   {
     id: 'Wound',
     title: 'Wound Measurement',
-    description: 'Measure wound size & healing stage',
+    description: 'Record wound photos; calibrated measurement pending',
     icon: '🩹',
-    color: '#10B981',
-    instructions: 'Place a 2.5cm coin next to wound for size reference. Capture clearly.',
+    color: Colors.wound,
+    instructions: 'Capture clearly without touching the wound. Do not place coins near an open wound. Measurements are not available in this preview.',
     targetArea: 'Wound / affected area',
   },
   {
     id: 'TongueDiagnosis',
     title: 'Tongue Diagnosis',
-    description: 'Detect deficiencies & infections',
+    description: 'Record tongue photos for clinician review',
     icon: '👅',
-    color: '#EC4899',
+    color: Colors.tongue,
     instructions: 'Extend tongue fully, use natural lighting, camera 15-20cm away.',
     targetArea: 'Extended tongue',
   },

@@ -7,7 +7,8 @@ public enum ScanType
     Posture,
     EyeDisease,
     Wound,
-    TongueDiagnosis
+    TongueDiagnosis,
+    Retina
 }
 
 public enum ScanStatus

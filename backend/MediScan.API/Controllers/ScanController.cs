@@ -30,6 +30,9 @@ public class ScanController : ControllerBase
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
+        if (!Enum.IsDefined(scanType) || image == null || image.Length == 0)
+            return BadRequest(ApiResponse<object>.Fail("A valid scan type and image are required."));
+
         Stream? imageStream = null;
         string? contentType = null;
 

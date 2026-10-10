@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ export default function HomeScreen() {
   const { user } = useAuthStore();
 
   const { data: recentScans, refetch, isRefetching } = useQuery({
-    queryKey: ['recentScans'],
+    queryKey: ['recentScans', 5],
     queryFn: () => scanService.getRecentScans(5),
     staleTime: 1000 * 60 * 2, // 2 min
   });
@@ -33,7 +33,7 @@ export default function HomeScreen() {
       acc[scan.scanType] = format(new Date(scan.createdAt), 'MMM d');
     }
     return acc;
-  }, {} as Record<ScanType, string>) ?? {};
+  }, {} as Partial<Record<ScanType, string>>) ?? {} as Partial<Record<ScanType, string>>;
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -43,9 +43,9 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bgDark }}>
+    <SafeAreaView edges={["left", "right"]} style={{ flex: 1, backgroundColor: Colors.bgDark }}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={{ paddingBottom: 24, width: '100%', maxWidth: 1000, alignSelf: 'center' }}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
@@ -55,9 +55,13 @@ export default function HomeScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
+        <View style={{ margin: 16, padding: 14, backgroundColor: `${Colors.warning}15`, borderRadius: 12 }}>
+          <Text style={{ color: Colors.warning, fontWeight: '700' }}>Research preview</Text>
+          <Text style={{ color: Colors.textSecondary, marginTop: 4 }}>{SCAN_MODULES.length} photo workflows are available. Clinical detection, healing assessment and prescription verification are not yet validated.</Text>
+        </View>
         {/* Header */}
         <LinearGradient
-          colors={['#1E3A8A', '#0F172A']}
+          colors={['#FFFFFF', '#F6F7F9']}
           style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 28, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}
         >
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -89,18 +93,18 @@ export default function HomeScreen() {
             gap: 10,
           }}>
             {[
-              { label: 'Total Scans', value: recentScans?.length ?? 0, icon: '📷' },
-              { label: 'This Month',  value: recentScans?.filter(s => new Date(s.createdAt).getMonth() === new Date().getMonth()).length ?? 0, icon: '📅' },
+              { label: 'Recent Scans', value: recentScans?.length ?? 0, icon: '📷' },
+              { label: 'Recent this month', value: recentScans?.filter(s => new Date(s.createdAt).getMonth() === new Date().getMonth() && new Date(s.createdAt).getFullYear() === new Date().getFullYear()).length ?? 0, icon: '📅' },
             ].map((stat) => (
               <View key={stat.label} style={{
                 flex: 1,
-                backgroundColor: 'rgba(255,255,255,0.08)',
+                backgroundColor: Colors.white,
                 borderRadius: 14,
                 padding: 12,
               }}>
                 <Text style={{ fontSize: 18 }}>{stat.icon}</Text>
                 <Text style={{ color: Colors.textPrimary, fontSize: 20, fontWeight: '800', marginTop: 4 }}>
-                  {stat.value}
+                  {recentScans ? stat.value : '—'}
                 </Text>
                 <Text style={{ color: Colors.textMuted, fontSize: 12 }}>{stat.label}</Text>
               </View>

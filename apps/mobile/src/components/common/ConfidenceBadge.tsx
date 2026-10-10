@@ -39,7 +39,7 @@ export default function ConfidenceBadge({ score, size = 'md' }: ConfidenceBadgeP
       }, padding]}>
         <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
         <Text style={{ color, fontSize, fontWeight: '700' }}>
-          {pct}% — {label}
+          {score === 0 ? 'Not assessed' : `${pct}% — ${label}`}
         </Text>
       </View>
     </View>

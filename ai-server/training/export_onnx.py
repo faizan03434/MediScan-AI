@@ -171,7 +171,7 @@ def export_to_onnx(name: str, cfg: dict) -> Path:
 
 def verify_onnx_inference(name: str, cfg: dict, onnx_path: Path):
     """Verify ONNX model runs and produces same output as PyTorch."""
-    print(f"  Verifying inference...")
+    print("  Verifying inference...")
 
     dummy = np.random.randn(*cfg["input_size"]).astype(np.float32)
 
@@ -189,7 +189,7 @@ def verify_onnx_inference(name: str, cfg: dict, onnx_path: Path):
     max_diff = np.abs(pt_out - onnx_out).max()
     print(f"  Max output diff (PyTorch vs ONNX): {max_diff:.6f}")
     assert max_diff < 0.01, f"Output mismatch too large: {max_diff}"
-    print(f"  Verification PASSED")
+    print("  Verification PASSED")
 
 
 def quantize_model(onnx_path: Path) -> Path:
@@ -306,7 +306,7 @@ def main():
     }
     with open(str(MODELS_DIR / "onnx_manifest.json"), "w") as f:
         json.dump(manifest, f, indent=2)
-    print(f"\nManifest saved: models/onnx_manifest.json")
+    print("\nManifest saved: models/onnx_manifest.json")
 
 
 if __name__ == "__main__":

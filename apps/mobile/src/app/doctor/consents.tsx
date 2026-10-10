@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -6,7 +6,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import doctorService from "../../services/doctorService";
 import Card from "../../components/common/Card";
 import { Colors } from "../../theme/colors";
-import { format } from "date-fns";
 
 export default function ConsentsScreen() {
   const router = useRouter();
@@ -76,7 +75,7 @@ export default function ConsentsScreen() {
 
                 {c.consentMessage ? (
                   <Text style={{ color: Colors.textSecondary, fontSize: 12, marginTop: 8, lineHeight: 18 }}
-                    numberOfLines={2}>"{c.consentMessage}"</Text>
+                    numberOfLines={2}>&quot;{c.consentMessage}&quot;</Text>
                 ) : null}
 
                 <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>

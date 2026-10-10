@@ -1,7 +1,8 @@
+import ProtectedImage from '../../../components/common/ProtectedImage';
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  Image, ActivityIndicator,
+  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -132,8 +133,8 @@ export default function PatientDetailScreen() {
                     <Card padding={14} style={{ marginBottom: 10 }}>
                       <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
                         {scan.imageUrl ? (
-                          <Image
-                            source={{ uri: scan.imageUrl }}
+                          <ProtectedImage
+                            uri={scan.imageUrl}
                             style={{ width: 50, height: 50, borderRadius: 10 }}
                             resizeMode="cover"
                           />

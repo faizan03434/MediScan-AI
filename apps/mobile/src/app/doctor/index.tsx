@@ -6,11 +6,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  RefreshControl, Alert, ActivityIndicator,
+  RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import doctorService from '../../services/doctorService';
 import useAuthStore from '../../store/authStore';
 import Card from '../../components/common/Card';
@@ -22,7 +22,6 @@ type Tab = 'patients' | 'consents';
 export default function DoctorPortalScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>('patients');
 
   const isDoctor = user?.role === 'Doctor' || user?.role === 'Admin';

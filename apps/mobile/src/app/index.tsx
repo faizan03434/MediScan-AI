@@ -38,7 +38,7 @@ export default function Index() {
         router.replace('/(auth)/login');
       }
     })();
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, router]);
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bgDark, alignItems: 'center', justifyContent: 'center' }}>

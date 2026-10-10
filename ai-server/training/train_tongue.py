@@ -6,11 +6,13 @@ Dataset: Tongue Disease Dataset (Kaggle) + supplementary
 
 Classes:
   0 - Normal (healthy pink tongue)
-  1 - Pale (anemia / B12 deficiency)
-  2 - White Coat (thrush / poor digestion)
-  3 - Yellow Coat (liver / digestive issues)
-  4 - Red Inflamed (infection / B vitamin deficiency)
-  5 - Dry Cracked (dehydration / nutritional)
+  1 - Pale appearance (does not establish anemia or B12 deficiency)
+  2 - White coating appearance (does not establish thrush)
+  3 - Yellow coating appearance
+  4 - Red appearance
+  5 - Cracked appearance
+
+Legacy folder-label experiment only; no clinically verified diagnostic targets.
 
 Architecture: MobileNetV3-Large (fast, mobile-friendly, suits subtle color diff)
 
@@ -23,7 +25,7 @@ import json
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
-from torchvision import transforms, models
+from torchvision import transforms
 from PIL import Image, ImageEnhance
 import timm
 from pathlib import Path
@@ -41,8 +43,8 @@ TONGUE_CLASSES = {
 # Alternate directory names for different dataset versions
 CLASS_DIR_ALIASES = {
     "Normal":       ["Normal", "normal", "healthy"],
-    "Pale":         ["Pale", "pale", "anemia"],
-    "WhiteCoat":    ["WhiteCoat", "white_coat", "white coat", "thrush"],
+    "Pale":         ["Pale", "pale"],
+    "WhiteCoat":    ["WhiteCoat", "white_coat", "white coat"],
     "YellowCoat":   ["YellowCoat", "yellow_coat", "yellow coat"],
     "RedInflamed":  ["RedInflamed", "red", "inflamed", "Red"],
     "DryCracked":   ["DryCracked", "dry", "cracked", "dry_cracked"],
@@ -92,7 +94,9 @@ def load_samples(data_dir: str):
     return samples
 
 
-def train(data_dir: str, epochs: int = 40, batch_size: int = 32, lr: float = 1e-4):
+def train(data_dir: str, epochs: int = 40, batch_size: int = 32, lr: float = 1e-4, legacy_unvalidated=False):
+    if not legacy_unvalidated:
+        raise ValueError('Legacy folder labels are not clinical diagnoses. Use audited tongue annotations; exploratory execution requires --legacy-unvalidated.')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
@@ -165,5 +169,6 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=40)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--lr", type=float, default=1e-4)
+    parser.add_argument('--legacy-unvalidated', action='store_true')
     args = parser.parse_args()
-    train(args.data_dir, args.epochs, args.batch_size, args.lr)
+    train(args.data_dir, args.epochs, args.batch_size, args.lr, args.legacy_unvalidated)

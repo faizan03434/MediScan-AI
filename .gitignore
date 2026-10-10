@@ -74,6 +74,13 @@ ai-server/models/*.h5
 ai-server/models/*.pb
 ai-server/training/runs/
 ai-server/training/datasets/
+ai-server/datasets/
+ai-server/models/ocr/
+ai-server/models/research/
+ai-server/models/**/*.pt
+ai-server/models/**/*.pth
+ai-server/models/**/*.onnx
+ai-server/*.pt
 
 # ──────────────────────────────────────────────
 # Node.js / React Native / Expo
@@ -145,3 +152,17 @@ infrastructure/**/*.tfstate.backup
 infrastructure/**/.terraform/
 infrastructure/**/*.tfvars
 !infrastructure/**/*.tfvars.example
+
+# Local preview and package cache
+.npm-cache/
+.preview/
+/package-lock.json
+
+# Local health photos must never enter source control
+backend/MediScan.API/wwwroot/uploads/
+*.db
+*.db-wal
+*.db-shm
+
+# Local authentication secrets
+**/appsettings.Local.json

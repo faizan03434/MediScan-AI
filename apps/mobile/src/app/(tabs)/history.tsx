@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { ActivityIndicator, View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import scanService from '../../services/scanService';
 import Card from '../../components/common/Card';
+import Button from '../../components/common/Button';
 import ConfidenceBadge from '../../components/common/ConfidenceBadge';
 import { Colors } from '../../theme/colors';
 import { SCAN_MODULES, type ScanType } from '../../types';
@@ -16,6 +17,7 @@ const FILTER_OPTIONS: { label: string; value: ScanType | undefined }[] = [
   { label: '🦠 Skin', value: 'SkinDisease' },
   { label: '🦴 Posture', value: 'Posture' },
   { label: '👁️ Eye', value: 'EyeDisease' },
+  { label: '🔬 Retina', value: 'Retina' },
   { label: '🩹 Wound', value: 'Wound' },
   { label: '👅 Tongue', value: 'TongueDiagnosis' },
 ];
@@ -25,13 +27,13 @@ export default function HistoryScreen() {
   const [selectedType, setSelectedType] = useState<ScanType | undefined>();
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['scanHistory', selectedType, page],
     queryFn: () => scanService.getHistory(selectedType, page, 15),
   });
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bgDark }}>
+    <SafeAreaView edges={["left", "right"]} style={{ flex: 1, backgroundColor: Colors.bgDark }}>
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 }}>
         <Text style={{ color: Colors.textPrimary, fontSize: 24, fontWeight: '800' }}>
@@ -46,6 +48,7 @@ export default function HistoryScreen() {
       <FlatList
         data={FILTER_OPTIONS}
         horizontal
+        style={{ flexGrow: 0, flexShrink: 0 }}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 12, gap: 8 }}
         keyExtractor={(item) => item.label}
@@ -71,6 +74,8 @@ export default function HistoryScreen() {
         }}
       />
 
+      {isLoading && <ActivityIndicator color={Colors.primary} style={{ margin: 24 }} />}
+      {isError && <View style={{ padding: 20, gap: 12 }}><Text style={{ color: Colors.danger }}>Your history could not load.</Text><Button title="Try again" variant="outline" onPress={() => refetch()} /></View>}
       {/* Scan list */}
       <FlatList
         data={data?.scans ?? []}
@@ -93,8 +98,8 @@ export default function HistoryScreen() {
           return (
             <TouchableOpacity
               onPress={() => router.push({
-                pathname: '/scan/[type]',
-                params: { type: item.scanType },
+                pathname: '/record/[id]',
+                params: { id: item.id },
               })}
               activeOpacity={0.85}
             >
@@ -138,6 +143,7 @@ export default function HistoryScreen() {
           );
         }}
       />
+      {!!data && data.totalCount > 15 && <View style={{ padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}><Button title="Previous" variant="outline" disabled={page === 1 || isRefetching} onPress={() => setPage(p => p - 1)} /><Text style={{ color: Colors.textMuted }}>{page} / {Math.ceil(data.totalCount / 15)}</Text><Button title="Next" variant="outline" disabled={page * 15 >= data.totalCount || isRefetching} onPress={() => setPage(p => p + 1)} /></View>}
     </SafeAreaView>
   );
 }

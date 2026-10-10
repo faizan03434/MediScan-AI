@@ -46,17 +46,6 @@ public class MedicationService : IMedicationService
                 }
             };
 
-        // Optionally enrich with GPT-4o if info is sparse
-        if (string.IsNullOrEmpty(result.Indication) && string.IsNullOrEmpty(result.AiAnalysis))
-        {
-            try
-            {
-                var rawInfo = $"Brand: {result.BrandName}, Generic: {result.GenericName}, Form: {result.DosageForm}";
-                result.AiAnalysis = await _ai.EnrichDrugInfoAsync(query, rawInfo);
-            }
-            catch { /* Non-critical — continue without AI enrichment */ }
-        }
-
         return result;
     }
 
@@ -74,7 +63,7 @@ public class MedicationService : IMedicationService
                 {
                     "Barcode not found in our database.",
                     "This product may not be registered in the OpenFDA database.",
-                    "For Pakistani medicines, check the DAP website: https://www.dap.gov.pk",
+                    "For Pakistan registration, check DRAP: https://eapp.dra.gov.pk/WebProductIndex.php. A missing US barcode result does not establish registration status.",
                     "Consult your pharmacist."
                 }
             };
@@ -85,6 +74,8 @@ public class MedicationService : IMedicationService
     // ── Save medication to user history ───────────────────────
     public async Task<MedicationRecordDto> SaveMedicationAsync(string userId, SaveMedicationRequest request)
     {
+        if (request.PrescriptionRecordId.HasValue && !await _db.PrescriptionRecords.AnyAsync(p => p.Id == request.PrescriptionRecordId.Value && p.UserId == userId))
+            throw new ArgumentException("Prescription record not found.");
         // Fetch latest drug info to store full details
         DrugInfoDto? drugInfo = null;
         try { drugInfo = await _drugData.FetchByNameAsync(request.DrugName); } catch { }
@@ -139,6 +130,7 @@ public class MedicationService : IMedicationService
             .Take(pageSize)
             .ToListAsync();
 
+        await _audit.LogAsync("Medication.HistoryRead", "MedicationRecord", userId: userId);
         return new MedicationHistoryDto
         {
             Items     = items.Select(MapToDto).ToList(),
@@ -153,6 +145,7 @@ public class MedicationService : IMedicationService
     {
         var record = await _db.MedicationRecords
             .FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
+        await _audit.LogAsync("Medication.Read", "MedicationRecord", record?.Id.ToString(), userId, success: record != null);
         return record == null ? null : MapToDto(record);
     }
 
@@ -173,10 +166,16 @@ public class MedicationService : IMedicationService
         string userId, SubmitPrescriptionRequest request,
         Stream imageStream, string contentType)
     {
-        // 1. Upload image to Azure Blob
+        if (!request.InputConfirmed) throw new ArgumentException("Review and confirm medicine details before saving this prescription.");
+        if ((request.Notes?.Length ?? 0) > 5000) throw new ArgumentException("Medicine details are too long.");
+        var drugNames = ExtractDrugNames(request.Notes ?? "");
+        if (drugNames.Count == 0) throw new ArgumentException("Enter at least one confirmed medicine name.");
+        if ((request.Notes ?? "").Split(new[] {'\n', ',', ';', '|'}, StringSplitOptions.RemoveEmptyEntries).Length > 10)
+            throw new ArgumentException("Review at most 10 medicine names per prescription.");
+        // 1. Store the confirmed prescription photo privately
         string? imageUrl = null;
         string? blobName = null;
-        try
+        if (imageStream != Stream.Null)
         {
             var (url, blob) = await _storage.UploadAsync(
                 imageStream, $"prescription_{Guid.NewGuid()}.jpg",
@@ -184,7 +183,6 @@ public class MedicationService : IMedicationService
             imageUrl = url;
             blobName = blob;
         }
-        catch { /* Storage not configured in dev — continue without image */ }
 
         // 2. Create prescription record
         var prescription = new PrescriptionRecord
@@ -204,14 +202,11 @@ public class MedicationService : IMedicationService
         _db.PrescriptionRecords.Add(prescription);
         await _db.SaveChangesAsync();
 
-        // 3. OCR — In Phase 3 we'll integrate Google ML Kit OCR via mobile.
-        //    For now the API accepts manually typed drug names in Notes field.
-        //    The mobile app sends parsed text from ML Kit to this endpoint.
-        var ocrText = request.Notes ?? "";
+        // Preserve OCR separately from the user-confirmed medicine names.
+        var ocrText = request.OcrRawText ?? "";
         prescription.OcrRawText = ocrText;
 
-        // 4. Parse drug names from OCR text (simple line-based extraction)
-        var drugNames = ExtractDrugNames(ocrText);
+        // Only confirmed names are looked up; raw OCR is never assumed to be a medicine list.
 
         // 5. Fetch drug info for each parsed drug
         var parsedDrugs = new List<ParsedPrescriptionDrug>();
@@ -221,11 +216,12 @@ public class MedicationService : IMedicationService
             parsedDrugs.Add(new ParsedPrescriptionDrug
             {
                 DrugName   = name,
-                IsKnownDrug = drugInfo?.Source != "NotFound",
+                IsKnownDrug = drugInfo != null && drugInfo.Source != "NotFound",
                 DrugInfo   = drugInfo,
             });
 
-            // Save each drug to medication history
+            // Retain unmatched names as unverified records too.
+            if (drugInfo == null) drugInfo = new DrugInfoDto { BrandName = name, Source = "NotFound", Warnings = ["No exact reference label found. Ask your pharmacist to verify identity."] };
             if (drugInfo != null)
             {
                 var medRecord = new MedicationRecord
@@ -241,7 +237,7 @@ public class MedicationService : IMedicationService
                     Warnings             = JsonSerializer.Serialize(drugInfo.Warnings),
                     DrugInteractions     = JsonSerializer.Serialize(drugInfo.Interactions),
                     HasSafetyWarning     = drugInfo.HasSafetyWarning,
-                    InputMethod          = MedicationInputMethod.OcrScan,
+                    InputMethod          = request.FromOcr ? MedicationInputMethod.OcrScan : MedicationInputMethod.ManualEntry,
                     IsPrescription       = true,
                     PrescribedBy         = request.DoctorName,
                     PrescribedDate       = request.PrescribedDate,
@@ -252,20 +248,11 @@ public class MedicationService : IMedicationService
         }
         await _db.SaveChangesAsync();
 
-        // 6. GPT-4o safety analysis
-        DrugSafetyAnalysis? safety = null;
-        if (drugNames.Count > 0)
-        {
-            try
-            {
-                safety = await _ai.AnalyzePrescriptionSafetyAsync(drugNames);
-                prescription.AiAnalysis     = safety.Summary;
-                prescription.HasSafetyWarnings = safety.HasCriticalWarning;
-                prescription.AiParsedJson   = JsonSerializer.Serialize(parsedDrugs);
-                await _db.SaveChangesAsync();
-            }
-            catch { /* GPT-4o unavailable — continue */ }
-        }
+        // Source matches do not verify a prescription, dosage, interactions or clinical suitability.
+        prescription.AiAnalysis = "Reference lookup only. A clinician or pharmacist must check medicine identity, dose, interactions and suitability. Pakistan registration has not been verified.";
+        prescription.AiParsedJson = JsonSerializer.Serialize(parsedDrugs);
+        prescription.HasSafetyWarnings = parsedDrugs.Any(d => d.DrugInfo?.HasSafetyWarning == true);
+        await _db.SaveChangesAsync();
 
         await _audit.LogAsync("Prescription.Analyze", "PrescriptionRecord",
             prescription.Id.ToString(), userId);
@@ -277,10 +264,10 @@ public class MedicationService : IMedicationService
             PrescribedDate  = prescription.PrescribedDate,
             ImageUrl        = imageUrl,
             Medications     = parsedDrugs,
-            AiAnalysis      = safety?.Summary ?? "Analysis pending — configure Azure OpenAI for automatic analysis.",
-            HasSafetyWarnings = safety?.HasCriticalWarning ?? false,
-            Warnings        = safety?.Warnings ?? new(),
-            Interactions    = safety?.Interactions ?? new(),
+            AiAnalysis      = prescription.AiAnalysis,
+            HasSafetyWarnings = prescription.HasSafetyWarnings,
+            Warnings        = parsedDrugs.SelectMany(d => d.DrugInfo?.Warnings ?? []).Distinct().ToList(),
+            Interactions    = parsedDrugs.SelectMany(d => d.DrugInfo?.Interactions ?? []).Distinct().ToList(),
             OcrRawText      = ocrText,
             CreatedAt       = prescription.CreatedAt,
         };
@@ -290,11 +277,13 @@ public class MedicationService : IMedicationService
     public async Task<List<PrescriptionSummaryDto>> GetPrescriptionsAsync(string userId)
     {
         var prescriptions = await _db.PrescriptionRecords
+            .Include(p => p.Medications)
             .Where(p => p.UserId == userId)
             .OrderByDescending(p => p.CreatedAt)
             .Take(50)
             .ToListAsync();
 
+        await _audit.LogAsync("Prescription.HistoryRead", "PrescriptionRecord", userId: userId);
         return prescriptions.Select(p => new PrescriptionSummaryDto
         {
             Id               = p.Id,
@@ -315,6 +304,7 @@ public class MedicationService : IMedicationService
             .Include(x => x.Medications)
             .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
 
+        await _audit.LogAsync("Prescription.Read", "PrescriptionRecord", p?.Id.ToString(), userId, success: p != null);
         if (p == null) return null;
 
         List<ParsedPrescriptionDrug> drugs = new();

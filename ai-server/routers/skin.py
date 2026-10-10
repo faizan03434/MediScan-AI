@@ -117,7 +117,6 @@ async def detect_skin_disease(
             (d["box"]["x2"] - d["box"]["x1"]) * (d["box"]["y2"] - d["box"]["y1"])
         ))
         b = largest["box"]
-        from PIL import Image
         roi_img = pil_img.crop((b["x1"], b["y1"], b["x2"], b["y2"]))
 
     # ── Step 2: Classification ──────────────────────────────
@@ -172,7 +171,7 @@ def _get_skin_recommendations(class_id: int, class_name: str, urgent: bool) -> d
     base = {
         7: {  # Eczema
             "advice": (
-                f"Eczema detected. Recommendations:\n"
+                "Eczema detected. Recommendations:\n"
                 "• Keep skin moisturized — apply fragrance-free moisturizer 2x daily\n"
                 "• Avoid hot showers, harsh soaps, and scratching\n"
                 "• Use mild, hypoallergenic detergents\n"

@@ -1,7 +1,7 @@
 """
 MediScan AI -- Dataset Download & Setup Script
 ==============================================
-Downloads and prepares all 6 training datasets.
+Legacy research candidates: sources and clinical suitability are unverified.
 
 Usage:
     python training/dataset_setup.py --dataset all
@@ -14,9 +14,7 @@ Kaggle setup (one-time):
 """
 
 import argparse
-import os
 import sys
-import zipfile
 import shutil
 import subprocess
 from pathlib import Path
@@ -176,7 +174,7 @@ def print_summary(datasets: list):
     for key in datasets:
         cfg = DATASET_CONFIGS[key]
         output = Path(cfg["output_dir"])
-        status = "READY" if output.exists() and any(output.iterdir()) else "MISSING"
+        status = "PRESENT_UNREVIEWED" if output.exists() and any(output.iterdir()) else "MISSING"
         files = sum(1 for _ in output.rglob("*") if _.is_file()) if output.exists() else 0
         print(f"  {status:8} | {cfg['name']:35} | {files:6} files | {cfg['size']}")
 
@@ -197,6 +195,8 @@ def main():
         "--skip-download", action="store_true",
         help="Skip download, just show status"
     )
+    parser.add_argument("--allow-unreviewed", action="store_true",
+                        help="Explicit research-only override for unverified legacy dataset candidates")
     args = parser.parse_args()
 
     target = list(DATASET_CONFIGS.keys()) if args.dataset == "all" else [args.dataset]
@@ -205,6 +205,8 @@ def main():
     print("="*60)
 
     if not args.skip_download:
+        if not args.allow_unreviewed:
+            parser.error("Legacy dataset candidates are unreviewed. Read docs/DATASETS.md; use --skip-download for status. No clinical-ready acquisition pipeline is configured.")
         if not check_kaggle():
             print("\nSetup kaggle.json first, then re-run this script.")
             sys.exit(1)

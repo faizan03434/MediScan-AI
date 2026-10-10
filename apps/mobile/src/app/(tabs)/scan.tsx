@@ -9,13 +9,13 @@ export default function ScanScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bgDark }}>
-      <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
+    <SafeAreaView edges={["left", "right"]} style={{ flex: 1, backgroundColor: Colors.bgDark }}>
+      <ScrollView contentContainerStyle={{ padding: 20, width: '100%', maxWidth: 800, alignSelf: 'center' }} showsVerticalScrollIndicator={false}>
         <Text style={{ color: Colors.textPrimary, fontSize: 24, fontWeight: '800', marginBottom: 6 }}>
           Medical Scans
         </Text>
         <Text style={{ color: Colors.textSecondary, fontSize: 14, marginBottom: 24 }}>
-          Select a scan type to start real-time detection
+          Select a guided photo workflow. Clinical detection is not yet available.
         </Text>
 
         {SCAN_MODULES.map((module) => (
@@ -66,8 +66,8 @@ export default function ScanScreen() {
           color: Colors.textMuted, fontSize: 12, textAlign: 'center',
           marginTop: 12, lineHeight: 18,
         }}>
-          🔒 All scans are encrypted and stored securely.{'\n'}
-          AI results are screening tools — always consult a doctor.
+          Development preview: use test photos only.{'\n'}
+          Clinical detection and compliance validation are pending.
         </Text>
       </ScrollView>
     </SafeAreaView>

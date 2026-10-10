@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import type { ScanResult } from '../types';
@@ -7,12 +6,15 @@ import type { ScanResult } from '../types';
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
 });
 
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
   // expo-device check: skip on web/simulator
   let isDevice = true;
   try {
@@ -62,6 +64,7 @@ export async function scheduleScanReminder(scan: ScanResult): Promise<void> {
     SkinDisease:     'Skin Scan',
     Posture:         'Posture Check',
     EyeDisease:      'Eye Scan',
+    Retina:          'Retina Review',
     Wound:           'Wound Check',
     TongueDiagnosis: 'Tongue Check',
   };
@@ -75,6 +78,7 @@ export async function scheduleScanReminder(scan: ScanResult): Promise<void> {
       sound: true,
     },
     trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
       date: nextDate,
     },
   });

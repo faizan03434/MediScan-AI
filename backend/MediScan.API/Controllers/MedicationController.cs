@@ -126,10 +126,11 @@ public class MedicationController : ControllerBase
             contentType = image.ContentType;
         }
 
+        await using var ownedImageStream = imageStream;
         var result = await _medicationService.AnalyzePrescriptionAsync(
             userId, request, imageStream ?? Stream.Null, contentType);
 
-        return Ok(ApiResponse<PrescriptionAnalysisDto>.Ok(result, "Prescription analyzed successfully."));
+        return Ok(ApiResponse<PrescriptionAnalysisDto>.Ok(result, "Confirmed prescription record saved. Clinician verification remains required."));
     }
 
     /// <summary>Get all prescriptions for current user</summary>

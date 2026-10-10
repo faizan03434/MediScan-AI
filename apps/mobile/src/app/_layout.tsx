@@ -18,15 +18,18 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   const loadUser = useAuthStore((s) => s.loadUser);
-
   useEffect(() => {
+    const unsubscribe = useAuthStore.subscribe((state, previous) => {
+      if (state.user?.id !== previous.user?.id) queryClient.clear();
+    });
     loadUser();
+    return unsubscribe;
   }, [loadUser]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <StatusBar style="light" backgroundColor={Colors.bgDark} />
+        <StatusBar style="dark" backgroundColor={Colors.bgDark} />
         <Stack
           screenOptions={{
             headerShown: false,

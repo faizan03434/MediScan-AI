@@ -1,37 +1,37 @@
 export const Colors = {
-  primary:   '#3B82F6',
-  primaryDark: '#1D4ED8',
-  secondary: '#8B5CF6',
+  primary:   '#176B5B',
+  primaryDark: '#105345',
+  secondary: '#667085',
 
   // Status colors
-  success:  '#10B981',
-  warning:  '#F59E0B',
-  danger:   '#EF4444',
-  info:     '#06B6D4',
+  success:  '#217A50',
+  warning:  '#9A6700',
+  danger:   '#B42318',
+  info:     '#216A8A',
 
   // Background
-  bgDark:   '#0F172A',
-  bgCard:   '#1E293B',
-  bgLight:  '#F8FAFC',
-  bgInput:  '#334155',
+  bgDark:   '#F6F7F9',
+  bgCard:   '#FFFFFF',
+  bgLight:  '#F9FAFB',
+  bgInput:  '#F9FAFB',
 
   // Text
-  textPrimary:   '#F1F5F9',
-  textSecondary: '#94A3B8',
-  textMuted:     '#64748B',
-  textDark:      '#0F172A',
+  textPrimary:   '#182230',
+  textSecondary: '#475467',
+  textMuted:     '#667085',
+  textDark:      '#182230',
 
   // Borders
-  border:       '#334155',
-  borderLight:  '#E2E8F0',
+  border:       '#E4E7EC',
+  borderLight:  '#EEF0F3',
 
   // Scan module colors
-  anemia:   '#EF4444',
-  skin:     '#F59E0B',
-  posture:  '#8B5CF6',
-  eye:      '#3B82F6',
-  wound:    '#10B981',
-  tongue:   '#EC4899',
+  anemia:   '#C45264',
+  skin:     '#AD7A34',
+  posture:  '#7970AD',
+  eye:      '#5682A3',
+  wound:    '#488A73',
+  tongue:   '#AB6784',
 
   white: '#FFFFFF',
   black: '#000000',
@@ -39,9 +39,9 @@ export const Colors = {
 };
 
 export const Gradients = {
-  primary:   ['#3B82F6', '#1D4ED8'],
-  dark:      ['#0F172A', '#1E293B'],
-  card:      ['#1E293B', '#0F172A'],
+  primary:   ['#176B5B', '#105345'],
+  dark:      ['#F6F7F9', '#FFFFFF'],
+  card:      ['#FFFFFF', '#F6F7F9'],
   success:   ['#10B981', '#059669'],
   danger:    ['#EF4444', '#DC2626'],
 };

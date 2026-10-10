@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from config import get_settings
-from routers import anemia, skin, posture, eye, wound, tongue
+from routers import screening_preview, document_ocr, model_status
 
 logger = structlog.get_logger()
 
@@ -75,7 +75,7 @@ async def add_process_time(request: Request, call_next):
 # ── Global exception handler ────────────────────────────────────
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error("unhandled_exception", path=request.url.path, error=str(exc))
+    logger.error("unhandled_exception", path=request.url.path, error_type=type(exc).__name__)
     return JSONResponse(
         status_code=500,
         content={
@@ -89,12 +89,9 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # ── Routers ─────────────────────────────────────────────────────
-app.include_router(anemia.router)
-app.include_router(skin.router)
-app.include_router(posture.router)
-app.include_router(eye.router)
-app.include_router(wound.router)
-app.include_router(tongue.router)
+app.include_router(screening_preview.router)
+app.include_router(document_ocr.router)
+app.include_router(model_status.router)
 
 # ── Health & Info endpoints ─────────────────────────────────────
 @app.get("/", tags=["Info"])
@@ -145,6 +142,6 @@ async def models_status():
         status[name] = {
             "exists": os.path.exists(path),
             "path": path,
-            "status": "ready" if os.path.exists(path) else "not_trained_yet"
+            "status": "present_unvalidated" if os.path.exists(path) else "not_trained_yet"
         }
-    return {"models": status}
+    return {"models": status, "clinical_inference_enabled": False, "mode": "research_preview"}

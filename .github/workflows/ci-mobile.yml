@@ -2,7 +2,7 @@ name: 🟡 Mobile CI — React Native
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, 'codex/**']
     paths:
       - "apps/mobile/**"
       - ".github/workflows/ci-mobile.yml"
@@ -20,10 +20,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: apps/mobile/package-lock.json
 
@@ -34,12 +34,10 @@ jobs:
       - name: TypeScript type-check
         working-directory: apps/mobile
         run: npx tsc --noEmit
-        continue-on-error: true  # Don't fail CI until types are fully wired
 
       - name: ESLint
         working-directory: apps/mobile
         run: npm run lint
-        continue-on-error: true
 
       - name: Check for TODO / FIXME markers
         working-directory: apps/mobile
@@ -56,13 +54,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-
-      - name: Install Expo CLI
-        run: npm install -g expo-cli@latest
+          node-version: "22"
 
       - name: Install dependencies
         working-directory: apps/mobile

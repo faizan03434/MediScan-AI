@@ -110,7 +110,9 @@ def load_real_poses_if_available(data_dir: str):
     return None, None
 
 
-def train(data_dir: str = "./datasets/posture", epochs: int = 100, batch_size: int = 128, lr: float = 1e-3):
+def train(data_dir: str = "./datasets/posture", epochs: int = 100, batch_size: int = 128, lr: float = 1e-3, legacy_unvalidated=False):
+    if not legacy_unvalidated:
+        raise ValueError('Synthetic imbalance targets cannot establish scoliosis. Use train_sitting_posture_research.py for audited sitting-posture data; legacy exploration requires --legacy-unvalidated.')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
@@ -188,5 +190,6 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument('--legacy-unvalidated', action='store_true')
     args = parser.parse_args()
-    train(args.data_dir, args.epochs, args.batch_size, args.lr)
+    train(args.data_dir, args.epochs, args.batch_size, args.lr, args.legacy_unvalidated)

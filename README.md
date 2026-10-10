@@ -1,5 +1,9 @@
 # MediScan AI 🏥
 
+> **Current status (4 October 2026): research development preview.** The original feature/compliance list below describes intended capabilities, not implemented or validated medical performance. Printed-English offline OCR, editable confirmation, exact medicine reference lookup and owner-scoped account activity are implemented. Skin intake contains 1,864 distinct decoded images across two sources; the six-class CNN scored 35.5% internal held-out balanced accuracy. MobileNet transfer training completed with 37.4% validation balanced accuracy and no new test evaluation. Additional anemia, fingernail and wound mirrors are [downloaded and audited](docs/MEDICAL_DATA_INTAKE.md), with data/rights issues retained in quarantine. See the [current implementation status](docs/IMPLEMENTATION_STATUS.md). Clinical inference, live medical ROI detection, Pakistan registration lookup and compliance work remain pending. Current captures deliberately return inconclusive. Use synthetic data only.
+>
+> Start with the [implementation audit and strategy](docs/PRODUCT_STRATEGY.md) and [iPhone QR preview guide](docs/IPHONE_PREVIEW.md). Actual local stack: .NET 9 API on port 5000, internal preview AI on 8001, Expo SDK 54 on 8081. Run `dotnet build backend/MediScan.sln`, then `./infrastructure/Start-Preview.ps1` after dependencies are installed.
+
 A HIPAA-aware, AI-powered mobile health assistant that uses live camera for real-time medical detection, tracks health history, and gives actionable lifestyle + medication guidance.
 
 ---
@@ -134,7 +138,7 @@ npx expo start
 - **OpenFDA** — Drug information
 - **Pakistan DAP** — Local drug registry
 - **Azure OpenAI (GPT-4o)** — AI recommendations & advice
-- **Google ML Kit** — OCR for prescriptions
+- **Local OCR** — Windows offline English OCR; optional EasyOCR for other hosts (see docs/OCR_AND_PRESCRIPTION.md)
 
 ---
 

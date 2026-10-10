@@ -33,6 +33,14 @@ public class ExceptionMiddleware
         {
             await WriteError(context, HttpStatusCode.BadRequest, ex.Message);
         }
+        catch (MediScan.API.Services.AuthConfigurationException ex)
+        {
+            await WriteError(context, HttpStatusCode.ServiceUnavailable, ex.Message);
+        }
+        catch (Microsoft.IdentityModel.Tokens.SecurityTokenException)
+        {
+            await WriteError(context, HttpStatusCode.Unauthorized, "Google identity could not be verified. Please sign in again.");
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception");

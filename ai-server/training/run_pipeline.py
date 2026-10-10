@@ -1,7 +1,8 @@
 """
 MediScan AI -- Full Training Pipeline Orchestrator
 ====================================================
-Runs dataset setup + training + evaluation + ONNX export for all 6 models.
+Legacy exploratory scripts for unreviewed tasks. Default execution is blocked.
+Use the audited intake and research training commands in docs/IMPLEMENTATION_STATUS.md.
 
 Usage:
   # Full pipeline (all models):
@@ -122,7 +123,7 @@ def print_training_plan(stages: list):
     print("-" * 75)
     for s in stages:
         model_exists = Path(s["output_model"]).exists()
-        status = "DONE" if model_exists else "TODO"
+        status = "PRESENT_UNVALIDATED" if model_exists else "MISSING"
         print(f"  [{status}] {s['model']:12} {s['data_dir']:25} {s['epochs']:6}  {s['note']}")
 
 
@@ -134,7 +135,7 @@ def save_pipeline_report(results: dict):
     }
     with open("models/pipeline_report.json", "w") as f:
         json.dump(report, f, indent=2)
-    print(f"\nPipeline report saved to models/pipeline_report.json")
+    print("\nPipeline report saved to models/pipeline_report.json")
 
 
 def main():
@@ -145,7 +146,13 @@ def main():
     parser.add_argument("--eval-only", action="store_true")
     parser.add_argument("--export-onnx", action="store_true",
                         help="Export to ONNX after training")
+    parser.add_argument("--legacy-unvalidated", action="store_true",
+                        help="Explicit research-only legacy exploration; not the reviewed product pipeline")
     args = parser.parse_args()
+    if not args.legacy_unvalidated:
+        parser.error('The legacy all-model pipeline uses unreviewed datasets/synthetic targets. '
+            'Use acquire_medical_research.py and train_skin_transfer.py for audited research workflows. '
+            'Legacy exploration requires --legacy-unvalidated and never establishes clinical readiness.')
 
     print("MediScan AI -- Training Pipeline")
     print("="*60)
@@ -188,6 +195,7 @@ def main():
                 sys.executable, stage["train_script"],
                 "--data_dir", stage["data_dir"],
                 "--epochs", str(stage["epochs"]),
+                *(['--legacy-unvalidated'] if stage['model'] in {'posture', 'tongue'} else []),
             ],
             f"Train: {stage['model']}"
         )

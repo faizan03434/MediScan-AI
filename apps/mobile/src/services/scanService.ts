@@ -1,4 +1,5 @@
 import api from './api';
+import { appendImage } from '../utils/upload';
 import type { ApiResponse, ScanResult, ScanHistory, ScanType } from '../types';
 
 const scanService = {
@@ -10,16 +11,7 @@ const scanService = {
     const formData = new FormData();
     formData.append('scanType', scanType);
 
-    // React Native FormData file append
-    const filename = imageUri.split('/').pop() ?? 'scan.jpg';
-    const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : 'image/jpeg';
-
-    formData.append('image', {
-      uri: imageUri,
-      name: filename,
-      type,
-    } as unknown as Blob);
+    await appendImage(formData, imageUri);
 
     const { data } = await api.post<ApiResponse<ScanResult>>('/scan', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

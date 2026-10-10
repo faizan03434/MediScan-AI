@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import type { User, AuthState } from '../types';
-import authService, { LoginPayload, RegisterPayload } from '../services/authService';
-import { clearTokens, getAccessToken } from '../services/api';
+import authService, { LoginPayload, AuthResponse } from '../services/authService';
+import { clearTokens, getAccessToken, getRefreshToken } from '../services/api';
 
 interface AuthActions {
   login: (payload: LoginPayload) => Promise<void>;
-  register: (payload: RegisterPayload) => Promise<void>;
+  acceptAuth: (response: AuthResponse) => void;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
   updateUser: (user: User) => void;
@@ -23,6 +23,7 @@ const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   // ── Actions ────────────────────────────────────────────────
   login: async (payload) => {
     set({ isLoading: true });
+    try {
     const response = await authService.login(payload);
     set({
       user: response.user,
@@ -31,11 +32,10 @@ const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       isAuthenticated: true,
       isLoading: false,
     });
+    } finally { set({ isLoading: false }); }
   },
 
-  register: async (payload) => {
-    set({ isLoading: true });
-    const response = await authService.register(payload);
+  acceptAuth: (response) => {
     set({
       user: response.user,
       accessToken: response.accessToken,
@@ -70,7 +70,7 @@ const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
         return;
       }
       const user = await authService.getProfile();
-      set({ user, accessToken: token, isAuthenticated: true, isLoading: false });
+      set({ user, accessToken: await getAccessToken(), refreshToken: await getRefreshToken(), isAuthenticated: true, isLoading: false });
     } catch {
       await clearTokens();
       set({ user: null, isAuthenticated: false, isLoading: false });

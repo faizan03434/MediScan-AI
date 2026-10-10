@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { errorMessage } from '../utils/errorMessage';
 import medicationService, {
   type DrugInfo,
   type MedicationRecord,
@@ -40,7 +41,7 @@ const useMedicationStore = create<MedicationState & MedicationActions>((set) => 
       set({ currentDrug: result, isLoading: false });
       return result;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Search failed';
+      const msg = errorMessage(err);
       set({ isLoading: false, error: msg });
       throw err;
     }
@@ -53,7 +54,7 @@ const useMedicationStore = create<MedicationState & MedicationActions>((set) => 
       set({ currentDrug: result, isLoading: false });
       return result;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Barcode lookup failed';
+      const msg = errorMessage(err);
       set({ isLoading: false, error: msg });
       throw err;
     }
@@ -66,7 +67,7 @@ const useMedicationStore = create<MedicationState & MedicationActions>((set) => 
       set({ currentPrescription: result, isLoading: false });
       return result;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Prescription analysis failed';
+      const msg = errorMessage(err);
       set({ isLoading: false, error: msg });
       throw err;
     }

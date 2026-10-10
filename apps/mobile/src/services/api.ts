@@ -2,16 +2,22 @@
  * MediScan AI — Axios API Client
  * All HTTP calls to the .NET backend go through this service.
  */
-import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import axios, { create, AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import * as SecureStore from '../utils/secureStorage';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+const host = Platform.OS === 'web' && typeof location !== 'undefined'
+  ? location.hostname : Constants.expoConfig?.hostUri?.split(':')[0] ?? 'localhost';
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? `http://${host}:5000/api/v1`;
+export const resolveImageUrl = (url?: string) => url?.startsWith('/')
+  ? `${BASE_URL.replace(/\/api\/v1\/?$/, '')}${url}` : url;
 
 const TOKEN_KEY   = 'mediscan_access_token';
 const REFRESH_KEY = 'mediscan_refresh_token';
 
 // ── Create Axios instance ──────────────────────────────────────
-const api: AxiosInstance = axios.create({
+const api: AxiosInstance = create({
   baseURL: BASE_URL,
   timeout: 30_000,
   headers: { 'Content-Type': 'application/json' },
@@ -28,7 +34,7 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
 
 // ── Response interceptor: handle 401 → refresh token ─────────
 let isRefreshing = false;
-let failedQueue: Array<{ resolve: (v: string) => void; reject: (e: unknown) => void }> = [];
+let failedQueue: { resolve: (v: string) => void; reject: (e: unknown) => void }[] = [];
 
 const processQueue = (error: unknown, token: string | null) => {
   failedQueue.forEach(({ resolve, reject }) =>
@@ -42,7 +48,8 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry
+        && (!originalRequest.url?.startsWith('/auth/') || originalRequest.url === '/auth/profile')) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -90,10 +97,12 @@ export const saveTokens = async (accessToken: string, refreshToken: string) => {
 };
 
 export const clearTokens = async () => {
+  delete api.defaults.headers.common.Authorization;
   await SecureStore.deleteItemAsync(TOKEN_KEY);
   await SecureStore.deleteItemAsync(REFRESH_KEY);
 };
 
 export const getAccessToken = () => SecureStore.getItemAsync(TOKEN_KEY);
+export const getRefreshToken = () => SecureStore.getItemAsync(REFRESH_KEY);
 
 export default api;

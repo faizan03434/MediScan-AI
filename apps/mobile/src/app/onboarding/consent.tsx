@@ -34,9 +34,9 @@ const CONSENT_ITEMS: ConsentItem[] = [
   {
     id: 'data_storage',
     icon: '🔒',
-    title: 'Encrypted health data storage',
+    title: 'Local development data storage',
     description:
-      'I consent to my health scan data, medication records, and profile being stored securely with AES-256 encryption on HIPAA-compliant servers. My data is never sold or shared with third parties.',
+      'I consent to storing test photos and profile data on this development computer. This preview uses local storage and is not certified HIPAA compliant. I will use test data only.',
     required: true,
   },
   {
@@ -44,7 +44,7 @@ const CONSENT_ITEMS: ConsentItem[] = [
     icon: '📋',
     title: 'Audit logging',
     description:
-      'I understand that all access to my health records is logged for security and compliance purposes. I can request a copy of these logs at any time.',
+      'I understand that implemented audit events are logged. Full read-access auditing, retention controls and user export still require implementation.',
     required: true,
   },
   {
@@ -52,7 +52,7 @@ const CONSENT_ITEMS: ConsentItem[] = [
     icon: '🤖',
     title: 'AI image processing',
     description:
-      'I consent to my scan images being temporarily processed by AI models for health detection. Images are stored securely in Azure Blob Storage with my account.',
+      'I consent to uploading photos for a research preview. Clinical AI inference is disabled until models and their validation are reviewed. Images are retained locally under my account.',
     required: true,
   },
   {
@@ -195,10 +195,10 @@ export default function ConsentScreen() {
           <Text style={{ fontSize: 24 }}>🛡️</Text>
           <View style={{ flex: 1 }}>
             <Text style={{ color: Colors.success, fontWeight: '700', fontSize: 13 }}>
-              HIPAA-Compliant Platform
+              Development preview
             </Text>
             <Text style={{ color: Colors.textMuted, fontSize: 12, marginTop: 2 }}>
-              AES-256 encryption · Full audit trail · No data selling · User-controlled deletion
+              Local test data · Clinical validation and compliance pending
             </Text>
           </View>
         </View>
@@ -214,7 +214,7 @@ export default function ConsentScreen() {
           </TouchableOpacity>
           <Text style={{ color: Colors.border }}>·</Text>
           <TouchableOpacity>
-            <Text style={{ color: Colors.primary, fontSize: 13 }}>HIPAA Notice</Text>
+            <Text style={{ color: Colors.primary, fontSize: 13 }}>Development Notice</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

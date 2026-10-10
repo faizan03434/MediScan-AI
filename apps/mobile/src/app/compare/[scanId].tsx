@@ -1,3 +1,4 @@
+import ProtectedImage from '../../components/common/ProtectedImage';
 /**
  * Scan Comparison Screen
  * Shows two scans of the same type side-by-side with trend analysis.
@@ -6,14 +7,13 @@
 import React, { useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  Image, ActivityIndicator,
+  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import scanService from '../../services/scanService';
 import Card from '../../components/common/Card';
-import ConfidenceBadge from '../../components/common/ConfidenceBadge';
 import { Colors } from '../../theme/colors';
 import { SCAN_MODULES } from '../../types';
 import { format, differenceInDays } from 'date-fns';
@@ -51,31 +51,14 @@ export default function CompareScreen() {
       new Date(previousScan.createdAt),
     );
 
-    // For detection scans: lower confidence of "detected" = improvement
-    const currDetected = (currentScan.detectionResult ?? '').toLowerCase().includes('detected');
-    const prevDetected = (previousScan.detectionResult ?? '').toLowerCase().includes('detected');
-
-    let trend: 'improved' | 'worsened' | 'stable' = 'stable';
-    if (prevDetected && !currDetected) trend = 'improved';
-    else if (!prevDetected && currDetected) trend = 'worsened';
-    else if (prevDetected && currDetected) {
-      if (curr < prev - 0.05) trend = 'improved';
-      else if (curr > prev + 0.05) trend = 'worsened';
-    }
-
-    return { trend, daysDiff, currScore: curr, prevScore: prev };
+    // Classifier confidence is not a measure of disease severity or recovery.
+    return { trend: 'stable' as const, daysDiff, currScore: curr, prevScore: prev };
   }, [currentScan, previousScan]);
 
-  const trendColor = trend?.trend === 'improved'
-    ? Colors.success
-    : trend?.trend === 'worsened'
-    ? Colors.danger
-    : Colors.warning;
+  const trendColor = Colors.warning;
 
-  const trendIcon = trend?.trend === 'improved' ? '📈' :
-                    trend?.trend === 'worsened' ? '📉' : '➡️';
-  const trendLabel = trend?.trend === 'improved' ? 'Improvement Detected' :
-                     trend?.trend === 'worsened' ? 'Condition Worsened' : 'No Significant Change';
+  const trendIcon = '📷';
+  const trendLabel = 'Clinical change not assessed';
 
   if (isLoading) {
     return (
@@ -134,7 +117,7 @@ export default function CompareScreen() {
                 {trendLabel}
               </Text>
               <Text style={{ color: Colors.textSecondary, fontSize: 13, marginTop: 2 }}>
-                Confidence change: {((trend.currScore - trend.prevScore) * 100).toFixed(1)}% over {trend.daysDiff} days
+                Model output difference (not recovery): {((trend.currScore - trend.prevScore) * 100).toFixed(1)}% over {trend.daysDiff} days
               </Text>
             </View>
           </View>
@@ -152,8 +135,8 @@ export default function CompareScreen() {
                   {label} · {format(new Date(scan.createdAt), 'MMM d')}
                 </Text>
                 {scan.imageUrl ? (
-                  <Image
-                    source={{ uri: scan.imageUrl }}
+                  <ProtectedImage
+                    uri={scan.imageUrl}
                     style={{ width: '100%', aspectRatio: 1, borderRadius: 14 }}
                     resizeMode="cover"
                   />

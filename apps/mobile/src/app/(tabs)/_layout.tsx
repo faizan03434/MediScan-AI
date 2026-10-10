@@ -1,84 +1,17 @@
-import { Tabs } from 'expo-router';
-import { Text, View } from 'react-native';
+import { Tabs, Redirect } from 'expo-router';
+import { ActivityIndicator, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AppHeader from '../../components/common/AppHeader';
+import useAuthStore from '../../store/authStore';
 import { Colors } from '../../theme/colors';
 
-function TabIcon({ emoji, label, focused }: { emoji: string; label: string; focused: boolean }) {
-  return (
-    <View style={{ alignItems: 'center', paddingTop: 6 }}>
-      <Text style={{ fontSize: 20 }}>{emoji}</Text>
-      <Text style={{
-        fontSize: 10, fontWeight: focused ? '700' : '500',
-        color: focused ? Colors.primary : Colors.textMuted,
-        marginTop: 2,
-      }}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
 export default function TabsLayout() {
-  return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: Colors.bgCard,
-          borderTopColor: Colors.border,
-          borderTopWidth: 1,
-          height: 72,
-          paddingBottom: 8,
-        },
-        tabBarShowLabel: false,
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textMuted,
-      }}
-    >
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🏠" label="Home" focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="scan"
-        options={{
-          title: 'Scan',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="📷" label="Scan" focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="history"
-        options={{
-          title: 'History',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="📊" label="History" focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="medication"
-        options={{
-          title: 'Meds',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="💊" label="Meds" focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="👤" label="Profile" focused={focused} />
-          ),
-        }}
-      />
-    </Tabs>
-  );
+  const { isAuthenticated, isLoading } = useAuthStore();
+  const insets = useSafeAreaInsets();
+  if (isLoading) return <View style={{ flex: 1, backgroundColor: Colors.bgDark, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={Colors.primary} /></View>;
+  if (!isAuthenticated) return <Redirect href="/(auth)/login" />;
+  return <Tabs screenOptions={{ header: () => <AppHeader />, headerShown: true, tabBarActiveTintColor: Colors.primary, tabBarInactiveTintColor: Colors.textMuted, tabBarStyle: { backgroundColor: Colors.white, borderTopColor: Colors.border, height: 68 + insets.bottom, paddingTop: 8, paddingBottom: 8 + insets.bottom }, tabBarLabelStyle: { fontSize: 11, fontWeight: '600' } }}>
+    {([['home', 'Home', 'grid'], ['scan', 'Scan', 'camera'], ['history', 'History', 'clock'], ['medication', 'Medicines', 'package'], ['profile', 'Profile', 'user']] as const).map(([name, title, icon]) => <Tabs.Screen key={name} name={name} options={{ title, tabBarIcon: ({ focused, color }) => <View style={{ width: 52, height: 28, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? '#EAF4F0' : 'transparent' }}><Feather name={icon} color={color} size={20} /></View> }} />)}
+  </Tabs>;
 }

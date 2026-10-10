@@ -1,41 +1,25 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import scanService from '../../services/scanService';
 import useAuthStore from '../../store/authStore';
-import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { Colors } from '../../theme/colors';
 import { SCAN_MODULES } from '../../types';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, logout, refreshToken } = useAuthStore();
+  const { user, logout } = useAuthStore();
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   const { data: recentScans } = useQuery({
-    queryKey: ['recentScans'],
+    queryKey: ['recentScans', 10],
     queryFn: () => scanService.getRecentScans(10),
   });
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to log out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/(auth)/login');
-          },
-        },
-      ]
-    );
-  };
+  const handleLogout = async () => { await logout(); router.replace('/(auth)/login'); };
 
   const scanCountByType = SCAN_MODULES.map(mod => ({
     ...mod,
@@ -47,8 +31,8 @@ export default function ProfileScreen() {
     : null;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bgDark }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+    <SafeAreaView edges={["left", "right"]} style={{ flex: 1, backgroundColor: Colors.bgDark }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 32, width: '100%', maxWidth: 800, alignSelf: 'center' }} showsVerticalScrollIndicator={false}>
         {/* Profile header */}
         <View style={{
           alignItems: 'center',
@@ -114,7 +98,7 @@ export default function ProfileScreen() {
           <Button
             title="Edit Profile"
             variant="outline"
-            onPress={() => Alert.alert('Edit Profile', 'Coming in next update')}
+            onPress={() => router.push('/profile/edit')}
             fullWidth
             style={{ marginTop: 14 }}
           />
@@ -123,7 +107,7 @@ export default function ProfileScreen() {
         {/* Scan stats */}
         <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
           <Text style={{ color: Colors.textPrimary, fontSize: 17, fontWeight: '700', marginBottom: 12 }}>
-            My Scan Activity
+            Recent Scan Activity (last 10)
           </Text>
           {scanCountByType.map(mod => (
             <View key={mod.id} style={{
@@ -148,12 +132,11 @@ export default function ProfileScreen() {
         {/* Settings & Logout */}
         <View style={{ paddingHorizontal: 20, marginTop: 28, gap: 10 }}>
           {[
-            { label: '👨‍⚕️ Doctor Portal', action: () => router.push('/doctor') },
+            ...(user?.role === 'Doctor' || user?.role === 'Admin' ? [{ label: '👨‍⚕️ Doctor Portal', action: () => router.push('/doctor') }] : []),
             { label: '🔐 Doctor Access Requests', action: () => router.push('/doctor/consents') },
-            { label: '🔔 Notifications', action: () => Alert.alert('Coming Soon') },
-            { label: '🔒 Privacy & Data', action: () => Alert.alert('Coming Soon') },
-            { label: '📋 HIPAA Consent',  action: () => Alert.alert('Coming Soon') },
-            { label: '❓ Help & Support', action: () => Alert.alert('Coming Soon') },
+            { label: '📋 Account Activity', action: () => router.push('/profile/activity') },
+            { label: '🔒 Privacy & Data', action: () => router.push({ pathname: '/information/[topic]', params: { topic: 'privacy' } }) },
+            { label: '❓ Help & Support', action: () => router.push({ pathname: '/information/[topic]', params: { topic: 'help' } }) },
           ].map((item) => (
             <TouchableOpacity
               key={item.label}
@@ -170,10 +153,11 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           ))}
 
+          {confirmLogout && <View style={{ gap: 12, padding: 16, backgroundColor: Colors.white, borderRadius: 14 }}><Text style={{ color: Colors.textSecondary }}>Sign out of this device?</Text><Button title="Confirm sign out" onPress={handleLogout} fullWidth /><Button title="Keep me signed in" variant="outline" onPress={() => setConfirmLogout(false)} fullWidth /></View>}
           <Button
             title="Logout"
             variant="danger"
-            onPress={handleLogout}
+            onPress={() => setConfirmLogout(true)}
             fullWidth
             style={{ marginTop: 8 }}
           />

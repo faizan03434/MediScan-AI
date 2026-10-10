@@ -16,5 +16,5 @@ export function useScanReminder(scan: ScanResult | null) {
         await scheduleScanReminder(scan);
       }
     })();
-  }, [scan?.id]);
+  }, [scan]);
 }

@@ -67,10 +67,16 @@ public class AuthService : IAuthService
 
         if (!user.IsActive)
             throw new UnauthorizedAccessException("Account is deactivated.");
+        if (await _userManager.IsLockedOutAsync(user))
+            throw new UnauthorizedAccessException("Account is temporarily locked.");
 
         var validPassword = await _userManager.CheckPasswordAsync(user, dto.Password);
         if (!validPassword)
+        {
+            await _userManager.AccessFailedAsync(user);
             throw new UnauthorizedAccessException("Invalid credentials.");
+        }
+        await _userManager.ResetAccessFailedCountAsync(user);
 
         return await GenerateAuthResponseAsync(user);
     }
@@ -87,6 +93,8 @@ public class AuthService : IAuthService
 
         // Rotate token
         var newRefreshToken = GenerateRefreshToken();
+        newRefreshToken.UserId = token.UserId;
+        if (token.User?.IsActive != true) throw new UnauthorizedAccessException("Account is inactive.");
         token.RevokedAt = DateTime.UtcNow;
         token.ReplacedByToken = newRefreshToken.Token;
 
@@ -103,10 +111,10 @@ public class AuthService : IAuthService
         };
     }
 
-    public async Task RevokeTokenAsync(string refreshToken)
+    public async Task RevokeTokenAsync(string refreshToken, string userId)
     {
         var token = await _db.RefreshTokens
-            .FirstOrDefaultAsync(r => r.Token == refreshToken);
+            .FirstOrDefaultAsync(r => r.Token == refreshToken && r.UserId == userId);
 
         if (token != null && token.IsActive)
         {
@@ -129,6 +137,7 @@ public class AuthService : IAuthService
 
         if (!string.IsNullOrEmpty(dto.FullName)) user.FullName = dto.FullName;
         if (dto.Gender != null) user.Gender = dto.Gender;
+        if (dto.DateOfBirth > DateTime.UtcNow) throw new ArgumentException("Date of birth cannot be in the future.");
         if (dto.DateOfBirth.HasValue) user.DateOfBirth = dto.DateOfBirth;
         if (dto.WeightKg.HasValue) user.WeightKg = dto.WeightKg;
         if (dto.HeightCm.HasValue) user.HeightCm = dto.HeightCm;
@@ -136,11 +145,19 @@ public class AuthService : IAuthService
         if (dto.MedicalHistory != null) user.MedicalHistory = dto.MedicalHistory;
         user.UpdatedAt = DateTime.UtcNow;
 
-        await _userManager.UpdateAsync(user);
+        var update = await _userManager.UpdateAsync(user);
+        if (!update.Succeeded) throw new ArgumentException(string.Join(" ", update.Errors.Select(e => e.Description)));
         return MapToProfileDto(user);
     }
 
     // ─── Private Helpers ─────────────────────────────────
+
+    public async Task<AuthResponseDto> IssueTokensAsync(string userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId) ?? throw new UnauthorizedAccessException();
+        if (!user.IsActive) throw new UnauthorizedAccessException();
+        return await GenerateAuthResponseAsync(user);
+    }
 
     private async Task<AuthResponseDto> GenerateAuthResponseAsync(ApplicationUser user)
     {
@@ -181,7 +198,8 @@ public class AuthService : IAuthService
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new Claim(ClaimTypes.NameIdentifier, user.Id),
             new Claim(ClaimTypes.Name, user.FullName),
-            new Claim(ClaimTypes.Role, user.Role)
+            new Claim(ClaimTypes.Role, user.Role),
+            new Claim("sst", user.SecurityStamp ?? "")
         };
 
         var token = new JwtSecurityToken(

@@ -25,6 +25,9 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface OtpChallenge { challengeId: string; expiresAt: string; resendAfterSeconds: number; message: string }
+export interface VerifyEmailPayload { email: string; challengeId: string; code: string }
+
 export interface UpdateProfilePayload {
   fullName?: string;
   gender?: string;
@@ -43,9 +46,32 @@ const authService = {
     return data.data;
   },
 
-  async register(payload: RegisterPayload): Promise<AuthResponse> {
-    const { data } = await api.post<ApiResponse<AuthResponse>>('/auth/register', payload);
+  async requestRegistration(payload: RegisterPayload): Promise<OtpChallenge> {
+    const { data } = await api.post<ApiResponse<OtpChallenge>>('/auth/register/request', payload);
     if (!data.success || !data.data) throw new Error(data.message);
+    return data.data;
+  },
+
+  async verifyRegistration(payload: VerifyEmailPayload): Promise<AuthResponse> {
+    const { data } = await api.post<ApiResponse<AuthResponse>>('/auth/register/verify', payload);
+    if (!data.success || !data.data) throw new Error(data.message);
+    await saveTokens(data.data.accessToken, data.data.refreshToken);
+    return data.data;
+  },
+
+  async requestPasswordReset(email: string): Promise<OtpChallenge> {
+    const { data } = await api.post<ApiResponse<OtpChallenge>>('/auth/password/forgot', { email });
+    if (!data.success || !data.data) throw new Error(data.message);
+    return data.data;
+  },
+  async resetPassword(payload: VerifyEmailPayload & { password: string; confirmPassword: string }): Promise<void> {
+    await api.post('/auth/password/reset', payload);
+  },
+  async googleSignIn(idToken: string, link = false): Promise<AuthResponse | null> {
+    const { data } = await api.post<ApiResponse<AuthResponse>>(link ? '/auth/google/link' : '/auth/google', { idToken });
+    if (!data.success) throw new Error(data.message);
+    if (link) return null;
+    if (!data.data) throw new Error('Google sign-in returned no account.');
     await saveTokens(data.data.accessToken, data.data.refreshToken);
     return data.data;
   },

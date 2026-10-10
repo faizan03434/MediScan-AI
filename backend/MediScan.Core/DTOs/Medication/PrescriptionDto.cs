@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace MediScan.Core.DTOs.Medication;
 
 /// <summary>Request to submit a prescription image for OCR + GPT-4o analysis</summary>
@@ -8,6 +10,9 @@ public class SubmitPrescriptionRequest
     public string? ClinicName { get; set; }
     public DateTime? PrescribedDate { get; set; }
     public string? Notes { get; set; }
+    [StringLength(50000)] public string? OcrRawText { get; set; }
+    public bool InputConfirmed { get; set; }
+    public bool FromOcr { get; set; }
     // Image comes as IFormFile in controller
 }
 
@@ -27,6 +32,8 @@ public class ParsedPrescriptionDrug
 /// <summary>Full prescription analysis result</summary>
 public class PrescriptionAnalysisDto
 {
+    public bool PrescriptionVerified => false;
+    public string VerificationStatus => "requires_clinician_review";
     public Guid Id { get; set; }
     public string? DoctorName { get; set; }
     public string? Diagnosis { get; set; }

@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
-import * as ImagePicker from 'expo-image-picker';
+import { pickScanPhoto } from '../../utils/pickScanPhoto';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ScanModuleInfo } from '../../types';
 import { Colors } from '../../theme/colors';
@@ -19,37 +19,13 @@ interface ScanCameraProps {
   onClose: () => void;
 }
 
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+const { width: SCREEN_W } = Dimensions.get('window');
 
 export default function ScanCamera({ module, onCapture, onClose }: ScanCameraProps) {
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>('back');
   const [capturing, setCapturing] = useState(false);
   const cameraRef = useRef<CameraView>(null);
-
-  // Request permission
-  if (!permission) {
-    return <View style={styles.container} />;
-  }
-
-  if (!permission.granted) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
-        <Text style={{ color: Colors.textPrimary, fontSize: 18, fontWeight: '700', textAlign: 'center', marginBottom: 12 }}>
-          Camera Permission Required
-        </Text>
-        <Text style={{ color: Colors.textSecondary, textAlign: 'center', marginBottom: 24 }}>
-          MediScan AI needs camera access to perform health scans.
-        </Text>
-        <TouchableOpacity
-          onPress={requestPermission}
-          style={{ backgroundColor: Colors.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 14 }}
-        >
-          <Text style={{ color: Colors.white, fontWeight: '700' }}>Grant Permission</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
 
   const handleCapture = useCallback(async () => {
     if (!cameraRef.current || capturing) return;
@@ -71,15 +47,48 @@ export default function ScanCamera({ module, onCapture, onClose }: ScanCameraPro
   }, [capturing, onCapture]);
 
   const handleGallery = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.85,
-      allowsEditing: true,
-    });
-    if (!result.canceled && result.assets[0]?.uri) {
-      onCapture(result.assets[0].uri);
+    if (capturing) return;
+    setCapturing(true);
+    try {
+      const uri = await pickScanPhoto();
+      if (uri) onCapture(uri);
+    } catch (error: unknown) {
+      Alert.alert('Photo unavailable', error instanceof Error ? error.message : 'Please choose another photo.');
+    } finally {
+      setCapturing(false);
     }
   };
+
+  // Request permission
+  if (!permission) {
+    return <View style={styles.container} />;
+  }
+
+  if (!permission.granted) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
+        <Text style={{ color: Colors.textPrimary, fontSize: 18, fontWeight: '700', textAlign: 'center', marginBottom: 12 }}>
+          Camera Permission Required
+        </Text>
+        <Text style={{ color: Colors.textSecondary, textAlign: 'center', marginBottom: 24 }}>
+          MediScan AI needs camera access to perform health scans.
+        </Text>
+        <TouchableOpacity
+          onPress={requestPermission}
+          style={{ backgroundColor: Colors.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 14 }}
+        >
+          <Text style={{ color: Colors.white, fontWeight: '700' }}>Grant Permission</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleGallery} disabled={capturing} style={{ padding: 18 }} accessibilityRole="button">
+          <Text style={{ color: Colors.primary, fontWeight: '700' }}>Upload a saved photo</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onClose} style={{ padding: 12 }} accessibilityRole="button">
+          <Text style={{ color: Colors.textSecondary }}>Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
 
   return (
     <View style={styles.container}>
@@ -135,7 +144,7 @@ export default function ScanCamera({ module, onCapture, onClose }: ScanCameraPro
 
           <View style={styles.controls}>
             {/* Gallery picker */}
-            <TouchableOpacity onPress={handleGallery} style={styles.sideBtn}>
+            <TouchableOpacity onPress={handleGallery} disabled={capturing} style={styles.sideBtn} accessibilityRole="button" accessibilityLabel="Upload a saved photo">
               <Text style={{ color: Colors.white, fontSize: 12, textAlign: 'center' }}>
                 🖼️{'\n'}Gallery
               </Text>

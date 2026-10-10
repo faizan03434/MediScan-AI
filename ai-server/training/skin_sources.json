@@ -1,0 +1,41 @@
+{
+  "review_date": "2026-10-03",
+  "sources": [
+    {
+      "kaggle_ref": "shubhamgoel27/dermnet",
+      "kaggle_version": 1,
+      "title": "Dermnet",
+      "reported_uncompressed_bytes": 1850517236,
+      "mirror_license": "Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0)",
+      "decision": "not_acquired",
+      "reason": "CC BY-NC-ND; original rights and AI permission need review; mixed acne/rosacea and fungal categories are not exact disease labels",
+      "clinical_ready": false
+    },
+    {
+      "kaggle_ref": "ismailpromus/skin-diseases-image-dataset",
+      "kaggle_version": 1,
+      "title": "Skin diseases image dataset",
+      "reported_uncompressed_bytes": 5579870377,
+      "mirror_license": "Data files \u00a9 Original Authors",
+      "decision": "not_acquired",
+      "reason": "Data files copyright Original Authors; no usable permission established",
+      "clinical_ready": false
+    },
+    {
+      "kaggle_ref": "samurarahman14/skindisnet-3",
+      "kaggle_version": 1,
+      "title": "SkinDisNet_3",
+      "reported_uncompressed_bytes": 224558625,
+      "mirror_license": "Apache 2.0",
+      "decision": "quarantined_research_intake",
+      "reason": "Original SkinDisNet source declares CC BY-NC 4.0; mirror Apache label is not a commercial grant",
+      "clinical_ready": false
+    }
+  ],
+  "original_skin_disnet_source": "https://data.mendeley.com/datasets/yj3md44hxg/2",
+  "original_skin_disnet_license": "CC BY-NC 4.0",
+  "original_skin_disnet_reported_images": 1710,
+  "original_skin_disnet_reported_patients": 416,
+  "augmented_images_are_not_unique_patients": true,
+  "commercial_release_allowed": false
+}

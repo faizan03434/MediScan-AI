@@ -56,8 +56,8 @@ def _analyze_posture(landmarks, img_w: int, img_h: int) -> dict:
     Returns angles and alignment scores.
     """
     def lm(idx):
-        l = landmarks[idx]
-        return (l.x * img_w, l.y * img_h)
+        landmark = landmarks[idx]
+        return (landmark.x * img_w, landmark.y * img_h)
 
     # Key landmarks
     left_shoulder  = lm(11)
@@ -67,8 +67,6 @@ def _analyze_posture(landmarks, img_w: int, img_h: int) -> dict:
     left_ear       = lm(7)
     right_ear      = lm(8)
     nose           = lm(0)
-    left_knee      = lm(25)
-    right_knee     = lm(26)
 
     # Shoulder level difference (scoliosis indicator)
     shoulder_diff = abs(left_shoulder[1] - right_shoulder[1])

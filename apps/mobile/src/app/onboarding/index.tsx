@@ -4,7 +4,7 @@
  */
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity,
+  View, Text, TouchableOpacity,
   Dimensions, FlatList, ViewToken,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -20,45 +20,45 @@ const SLIDES = [
     title: 'Welcome to MediScan AI',
     subtitle: 'Your personal AI health assistant',
     description:
-      'Detect health conditions early using just your phone camera. Powered by advanced AI models trained on medical datasets.',
+      'Build a photo health journal with guided capture and fundus upload workflows. Clinical models are still in development.',
     color: Colors.primary,
-    bg: ['#1E3A8A', '#0F172A'] as [string, string],
+    bg: ['#FFFFFF', '#F6F7F9'] as [string, string],
   },
   {
     icon: '📷',
     title: '6 Health Scan Modules',
-    subtitle: 'Live camera detection',
+    subtitle: 'Guided camera capture',
     description:
-      'Anemia · Skin Disease · Posture & Scoliosis · Eye Disease · Wound Measurement · Tongue Diagnosis\n\nPoint, scan, get results in seconds.',
+      'Anemia · Skin Disease · Posture & Scoliosis · Eye Disease · Wound Measurement · Tongue Diagnosis\n\nCapture and save photos. Clinical detection is not yet available.',
     color: '#8B5CF6',
-    bg: ['#2D1B69', '#0F172A'] as [string, string],
+    bg: ['#FFFFFF', '#F6F7F9'] as [string, string],
   },
   {
     icon: '💊',
     title: 'Smart Medication Scanner',
-    subtitle: 'Barcode · OCR · AI Analysis',
+    subtitle: 'Barcode · Manual entry · Photo records',
     description:
-      'Scan medicine barcodes, photograph prescriptions, or type drug names. Get instant information from OpenFDA + Pakistan DAP with AI safety analysis.',
+      'Scan medicine barcodes, photograph prescriptions, or type drug names. Look up US label information from OpenFDA. Pakistan registration and prescription suitability require separate verification.',
     color: '#10B981',
-    bg: ['#064E3B', '#0F172A'] as [string, string],
+    bg: ['#FFFFFF', '#F6F7F9'] as [string, string],
   },
   {
     icon: '📊',
     title: 'Track & Compare',
     subtitle: 'Monitor your health over time',
     description:
-      'Every scan is saved. Compare results over time, get reminders for follow-up scans, and track improvements in your health.',
+      'Every scan is saved. Compare results over time, get reminders for follow-up scans, and review photos with your clinician.',
     color: '#F59E0B',
-    bg: ['#78350F', '#0F172A'] as [string, string],
+    bg: ['#FFFFFF', '#F6F7F9'] as [string, string],
   },
   {
     icon: '🔒',
     title: 'Private & Secure',
-    subtitle: 'HIPAA-compliant by design',
+    subtitle: 'Local development preview',
     description:
-      'Your health data is encrypted end-to-end. We follow HIPAA standards: no data sharing, full audit trails, and you control your data at all times.',
+      'This local preview is not HIPAA compliant. Use test data while encryption, privacy controls and comprehensive audit coverage are completed.',
     color: '#3B82F6',
-    bg: ['#1E3A8A', '#0F172A'] as [string, string],
+    bg: ['#FFFFFF', '#F6F7F9'] as [string, string],
   },
 ];
 

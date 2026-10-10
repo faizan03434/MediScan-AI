@@ -34,6 +34,9 @@ public class DrugInfoDto
     public List<string> Contraindications { get; set; } = new();
     public string? StorageInfo { get; set; }
     public string? Source { get; set; }             // "OpenFDA" | "PakistanDAP" | "Cache"
+    public string? ReferenceUrl { get; set; }
+    public DateTime? RetrievedAt { get; set; }
+    public bool PrescriptionVerified => false;
     public string? CountryOfOrigin { get; set; }
     public string? AiAnalysis { get; set; }         // GPT-4o enrichment (if enabled)
     public bool HasSafetyWarning { get; set; }

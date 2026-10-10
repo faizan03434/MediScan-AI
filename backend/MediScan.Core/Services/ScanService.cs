@@ -79,7 +79,7 @@ public class ScanService : IScanService
                 scan.AiRecommendation = aiResult.Recommendation;
 
                 // ── GPT-4o post-scan lifestyle advice ──────────
-                try
+                if (!((aiResult.DetectionDetails ?? "").Contains("research_preview"))) try
                 {
                     var advice = await _recommendation.GetScanAdviceAsync(
                         dto.ScanType,
@@ -129,6 +129,7 @@ public class ScanService : IScanService
         var scan = await _db.ScanRecords
             .FirstOrDefaultAsync(s => s.Id == scanId && s.UserId == userId);
 
+        await _audit.LogAsync("Scan.Read", "ScanRecord", scan?.Id.ToString(), userId, success: scan != null);
         return scan == null ? null : MapToDto(scan);
     }
 
@@ -149,6 +150,7 @@ public class ScanService : IScanService
             .Take(pageSize)
             .ToListAsync();
 
+        await _audit.LogAsync("Scan.HistoryRead", "ScanRecord", userId: userId);
         return new ScanHistoryDto
         {
             Scans = scans.Select(MapToDto).ToList(),
@@ -166,6 +168,7 @@ public class ScanService : IScanService
             .Take(count)
             .ToListAsync();
 
+        await _audit.LogAsync("Scan.RecentRead", "ScanRecord", userId: userId);
         return scans.Select(MapToDto).ToList();
     }
 
@@ -177,6 +180,8 @@ public class ScanService : IScanService
 
         if (scan1 == null || scan2 == null)
             throw new KeyNotFoundException("One or both scans not found.");
+        if (scan1.Id == scan2.Id || scan1.ScanType != scan2.ScanType)
+            throw new ArgumentException("Choose two different scans of the same type.");
 
         var newer = scan1.CreatedAt > scan2.CreatedAt ? scan1 : scan2;
         var older = scan1.CreatedAt > scan2.CreatedAt ? scan2 : scan1;
@@ -192,6 +197,7 @@ public class ScanService : IScanService
             DaysDifference = (newer.CreatedAt - older.CreatedAt).Days
         });
 
+        await _audit.LogAsync("Scan.CompareRead", "ScanRecord", userId: userId);
         return dto;
     }
 
