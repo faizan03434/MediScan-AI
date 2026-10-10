@@ -50,8 +50,10 @@ def metrics(logits, labels, temperature=1., bins=15):
 def fit_temperature(logits, labels, subject_ids, previously_used_subjects):
     logits, labels = validate(logits, labels)
     subjects = np.asarray(subject_ids)
-    if subjects.shape != labels.shape or subjects.dtype.kind not in 'US' or any(not str(s).strip() for s in subjects):
+    if subjects.shape != labels.shape or subjects.dtype.kind != 'U' or any(not s.strip() or s != s.strip() for s in subjects):
         raise ValueError('Calibration subject identifiers required')
+    if any(not isinstance(s, str) or not s.strip() or s != s.strip() for s in previously_used_subjects):
+        raise ValueError('Canonical string identifiers required in prior-subject registry')
     if set(subjects.tolist()) & set(previously_used_subjects):
         raise ValueError('Calibration overlaps training, selection or previously inspected test subjects')
     if set(labels.tolist()) != set(range(logits.shape[1])):

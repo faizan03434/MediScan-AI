@@ -17,6 +17,9 @@ class CalibrationTests(unittest.TestCase):
         for subjects, previous in [(['A', 'B'], ['A']), (['A', 'A'], [])]:
             with self.assertRaises(ValueError):
                 fit_temperature([[1, 0], [0, 1]], [0, 1], subjects, previous)
+        for subjects, previous in [([b'A', b'B'], ['A']), ([' A', 'B'], ['A']), (['A', 'B'], [b'A'])]:
+            with self.assertRaises(ValueError):
+                fit_temperature([[1, 0], [0, 1]], [0, 1], subjects, previous)
 
     def test_nan_and_outside_labels_rejected(self):
         for logits, labels in [([[float('nan'), 0]], [0]), ([[1, 0]], [2]), ([[1, 0]], [True])]:
