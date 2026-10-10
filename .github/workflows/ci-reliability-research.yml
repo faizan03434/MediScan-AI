@@ -1,0 +1,44 @@
+name: Research reliability checks
+
+on:
+  push:
+    paths:
+      - 'ai-server/training/calibration_research.py'
+      - 'ai-server/training/clinical_cohort_review.py'
+      - 'ai-server/tests/test_calibration_research.py'
+      - 'ai-server/tests/test_clinical_cohort_review.py'
+      - '.github/workflows/ci-reliability-research.yml'
+  pull_request:
+    paths:
+      - 'ai-server/training/calibration_research.py'
+      - 'ai-server/training/clinical_cohort_review.py'
+      - 'ai-server/tests/test_calibration_research.py'
+      - 'ai-server/tests/test_clinical_cohort_review.py'
+      - '.github/workflows/ci-reliability-research.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  reliability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install repository-pinned NumPy
+        working-directory: ai-server
+        run: |
+          python - <<'PY'
+          import pathlib, subprocess, sys
+          lines = pathlib.Path('requirements.txt').read_text().splitlines()
+          dependencies = [line.split('#')[0].strip() for line in lines if line.split('==')[0].strip() == 'numpy']
+          assert len(dependencies) == 1, 'Expected one pinned NumPy requirement'
+          subprocess.check_call([sys.executable, '-m', 'pip', 'install', *dependencies])
+          PY
+      - name: Verify research calibration and cohort isolation
+        working-directory: ai-server
+        run: |
+          python -m unittest discover -s tests -p test_calibration_research.py -v
+          python -m unittest discover -s tests -p test_clinical_cohort_review.py -v

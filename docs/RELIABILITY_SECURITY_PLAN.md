@@ -10,6 +10,8 @@ Eight regression tests cover allocation before decode, corrupt/unsupported uploa
 
 ## Model reliability work
 
+Follow-up implementation: reserved-subject temperature calibration, calibration metrics, unknown-condition rejection reporting and clinical-cohort metadata checks are now available. The cohort checker requires consent/rights claims, two distinct reviewers, resolved adjudication, reference standards and separate Pakistan external-test subjects; it never grants clinical approval. See [clinical validation workflow](CLINICAL_VALIDATION_WORKFLOW.md). No actual clinician review, independent Pakistan recruitment or real-model calibration has been completed by these tools. All 78 local AI tests pass, including nine new calibration/cohort checks.
+
 1. Obtain labels and rights suited to each exact task. Sitting-posture labels do not establish scoliosis; tongue morphology does not establish B12 deficiency/infection. Review annotations with clinicians and verify subject grouping.
 2. Keep training/validation selection separate from a newly collected independent clinical test. Include Pakistan participants, phone/device variation, lighting, skin tone, and alternative conditions. Previously inspected tests cannot be reused to tune a headline score.
 3. Add capture-quality feedback and separately validate blur/exposure/ROI thresholds before using them to reject patient images. Do not use arbitrary quality heuristics as disease evidence.
@@ -20,6 +22,8 @@ Eight regression tests cover allocation before decode, corrupt/unsupported uploa
 
 Review retained-upload sanitization, access/owner isolation, credential/OTP abuse limits, clinician consent/revocation, retention/deletion, encrypted transport/storage and audit-log exclusions. Audit dependencies and production configuration in the actual deployed environment. These changes are incremental safeguards, not evidence of HIPAA certification or complete medical validation.
 
+Local backend follow-up: OTP digests use keyed HMAC; three sends and five failures per account/purpose per 15 minutes survive resending within the process. Storage upload/read/delete now reject escaping paths, alternate streams and existing symlinks/junctions. All 28 backend tests pass. Distributed/restart-persistent OTP budgets, storage encryption/metadata sanitization and operational retention remain pending. Backend integration depends on earlier unpublished authentication/media changes and is not part of the scoped publication below.
+
 ## GitHub publication scope
 
-This publication contains the bounded image decoder, API-key comparison, eight security regression tests, their dedicated CI workflow and this plan. Other existing mobile/backend/research working changes remain local. Raw images, patient databases, access correspondence, datasets and model weights are not included. GitHub publication is distinct from deploying or enabling clinical inference.
+This publication contains the bounded image decoder, API-key comparison, eight security regression tests, their dedicated CI workflow and this plan. The follow-up adds two standalone research tools, nine calibration/cohort tests, a dedicated workflow and the clinical validation workflow. Other existing mobile/backend/research working changes remain local. Raw images, patient databases, access correspondence, datasets and model weights are not included. GitHub publication is distinct from deploying or enabling clinical inference.
