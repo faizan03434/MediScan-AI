@@ -70,6 +70,11 @@ services:
       AiServer__ApiKey: internal-dev-key
       Azure__StorageConnectionString: ""
       Azure__ContainerName: mediscan-scans
+      Authentication__Otp__DatabasePath: /app/.auth/verification.db
+      Authentication__DataProtection__KeyDirectory: /app/.auth/keys
+    volumes:
+      - api_auth:/app/.auth
+      - api_uploads:/app/wwwroot/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -125,6 +130,10 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  api_auth:
+    driver: local
+  api_uploads:
     driver: local
 
 # ── Networks ─────────────────────────────────────────────────

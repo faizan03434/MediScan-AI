@@ -5,8 +5,15 @@ namespace MediScan.API.Services;
 
 public record IssuedOtp(string ChallengeId, string Code, DateTimeOffset ExpiresAt);
 
+public interface IEmailOtpStore
+{
+    IssuedOtp Issue(string email, string purpose, object? payload);
+    object? Consume(string id, string email, string purpose, string code);
+    void Cancel(string id);
+}
+
 // Single-process development store. Production must share atomic challenges across instances.
-public sealed class EmailOtpStore(TimeProvider clock)
+public sealed class EmailOtpStore(TimeProvider clock) : IEmailOtpStore
 {
     private sealed record Entry(string Email, string Purpose, byte[] Hash, DateTimeOffset Expires,
         object? Payload) { public int Attempts { get; set; } }

@@ -1,5 +1,7 @@
 # Reliability and security work — 10 October 2026
 
+**Later checkpoint:** [delivery ledger](DELIVERY_STRATEGY.md) supersedes the earlier OTP/storage pending notes below. Persistent encrypted OTP and atomic per-account budgets now work across same-host workers sharing a SQLite file/key ring. Owner exports, all-device session invalidation, opt-in deleted-record purge and private Docker build contexts are implemented and covered in 54 passing backend tests. Multi-host OTP, full account/backup erasure and deployed/clinical validation remain pending.
+
 **19 October follow-up:** New scan/prescription uploads are now normalized before persistence, with orientation applied and original image metadata removed. Normalizer failure prevents storage; local/Azure writes use owner-authorized media URLs. Live capture validates evidence before automatic capture, and guidance/normalization share a bounded per-process work limit. 41 backend and 86 AI tests pass, plus mobile checks and a running synthetic six-module upload/privacy check. Existing retained photos are not migrated; cloud/physical-device/clinical validation, persistent OTP budgets and production operations remain pending. See the [current completion audit](COMPLETION_AUDIT_2026_10_19.md); statements below describe the earlier implementation.
 
 ## Implemented in this change

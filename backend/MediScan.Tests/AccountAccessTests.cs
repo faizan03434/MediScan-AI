@@ -1,4 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text.Json;
+using MediScan.API.Controllers;
 using MediScan.API.Services;
 using MediScan.Core.DTOs.Auth;
 using MediScan.Core.Entities;
@@ -6,6 +9,8 @@ using MediScan.Core.Interfaces;
 using MediScan.Infra.Data;
 using MediScan.Infra.Repositories;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -50,7 +55,7 @@ public class AccountAccessTests
             services.AddDbContext<AppDbContext>(o => o.UseSqlite(connection));
             services.AddIdentityCore<ApplicationUser>(o => { o.User.RequireUniqueEmail = true; o.Password.RequiredLength = 8; o.Password.RequireNonAlphanumeric = false; })
                 .AddRoles<IdentityRole>().AddEntityFrameworkStores<AppDbContext>().AddDefaultTokenProviders();
-            services.AddSingleton(TimeProvider.System); services.AddSingleton<EmailOtpStore>();
+            services.AddSingleton(TimeProvider.System); services.AddSingleton<IEmailOtpStore, EmailOtpStore>();
             services.AddSingleton<IVerificationEmailSender>(Mail); services.AddSingleton<IGoogleIdentityVerifier>(Google);
             services.AddScoped<IAuthService, AuthService>(); services.AddScoped<AccountAccessService>();
             provider = services.BuildServiceProvider(); await Db.Database.EnsureCreatedAsync();
@@ -59,6 +64,57 @@ public class AccountAccessTests
         public async ValueTask DisposeAsync() { await provider.DisposeAsync(); await connection.DisposeAsync(); }
     }
     private static RegisterDto Registration(string email = "member@example.com") => new() { Email = email, FullName = "Test Member", Password = "Password123", ConfirmPassword = "Password123" };
+    private static AccountDataController DataController(Fixture f, string? id) => new(f.Db, f.Users, new AuditService(f.Db)) {
+        ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext {
+            User = new ClaimsPrincipal(new ClaimsIdentity(id == null ? [] : [new Claim(ClaimTypes.NameIdentifier, id)], "test")) } } };
+
+    [Fact]
+    public async Task AccountExportIsOwnerScopedAndExcludesCredentialsAndBlobPaths()
+    {
+        await using var f = new Fixture(); await f.Initialize();
+        var owner = await f.Auth.RegisterAsync(Registration());
+        var other = await f.Auth.RegisterAsync(Registration("other@example.com"));
+        f.Db.ScanRecords.AddRange(new ScanRecord { UserId = owner.User.Id, DetectionResult = "owner retained", IsDeleted = true, ImageBlobName = "private-internal-path" },
+            new ScanRecord { UserId = other.User.Id, DetectionResult = "other private result" });
+        f.Db.MedicationRecords.AddRange(new MedicationRecord { UserId = owner.User.Id, DrugName = "owner medicine" },
+            new MedicationRecord { UserId = other.User.Id, DrugName = "other private medicine" });
+        f.Db.PrescriptionRecords.AddRange(new PrescriptionRecord { UserId = owner.User.Id, Notes = "owner notes" },
+            new PrescriptionRecord { UserId = other.User.Id, Notes = "other private notes" });
+        await f.Db.SaveChangesAsync();
+        var controller = DataController(f, owner.User.Id);
+        foreach (var section in new[] { "profile", "scans", "medications", "prescriptions", "consents" })
+        {
+            var result = Assert.IsType<OkObjectResult>(await controller.Export(section));
+            var json = JsonSerializer.Serialize(result.Value);
+            Assert.DoesNotContain("other private", json); Assert.DoesNotContain("other@example.com", json);
+            Assert.DoesNotContain("PasswordHash", json); Assert.DoesNotContain("SecurityStamp", json);
+            Assert.DoesNotContain("RefreshToken", json); Assert.DoesNotContain("private-internal-path", json);
+            if (section == "scans") Assert.Contains("owner retained", json);
+        }
+        Assert.Equal("private, no-store", controller.Response.Headers.CacheControl.ToString());
+        Assert.Equal(5, await f.Db.AuditLogs.CountAsync(a => a.UserId == owner.User.Id && a.Action == "Account.Export"));
+        Assert.IsType<BadRequestObjectResult>(await controller.Export("credentials"));
+        Assert.IsType<BadRequestObjectResult>(await controller.Export("scans", pageSize: 101));
+        Assert.IsType<BadRequestObjectResult>(await controller.Export("scans", page: 0));
+        Assert.IsType<UnauthorizedResult>(await DataController(f, null).Export("scans"));
+    }
+
+    [Fact]
+    public async Task AllDeviceLogoutRotatesStampAndRevokesOnlyOwnersSessions()
+    {
+        await using var f = new Fixture(); await f.Initialize();
+        var owner = await f.Auth.RegisterAsync(Registration());
+        var second = await f.Auth.IssueTokensAsync(owner.User.Id);
+        var other = await f.Auth.RegisterAsync(Registration("other@example.com"));
+        var oldStamp = (await f.Users.FindByIdAsync(owner.User.Id))!.SecurityStamp;
+        Assert.IsType<OkObjectResult>(await DataController(f, owner.User.Id).RevokeAll(default));
+        Assert.NotEqual(oldStamp, (await f.Users.FindByIdAsync(owner.User.Id))!.SecurityStamp);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => f.Auth.RefreshTokenAsync(owner.RefreshToken));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => f.Auth.RefreshTokenAsync(second.RefreshToken));
+        Assert.Equal(other.User.Id, (await f.Auth.RefreshTokenAsync(other.RefreshToken)).User.Id);
+        Assert.Single(await f.Db.AuditLogs.Where(a => a.UserId == owner.User.Id && a.Action == "Auth.RevokeAll").ToListAsync());
+        Assert.IsType<UnauthorizedResult>(await DataController(f, null).RevokeAll(default));
+    }
 
     [Fact]
     public async Task RegistrationRequiresDeliveredCodeAndPreservesPasswordHash()

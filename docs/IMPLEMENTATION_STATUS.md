@@ -1,5 +1,7 @@
 # Implementation status — 10 October 2026
 
+**Latest checkpoint:** [delivery ledger](DELIVERY_STRATEGY.md) — 49/100 complete and 51/100 remaining by the same engineering rubric; 54 backend tests pass. Persistent encrypted OTP, account exports, all-device logout, opt-in deleted-record purge, Docker privacy/persistence and stale Expo host recovery are implemented. Live SMTP still fails; physical-device, Google and clinical acceptance remain open.
+
 **Latest audit: [19 October completion assessment](COMPLETION_AUDIT_2026_10_19.md)** — 45/100 complete and 55/100 remaining by a documented engineering rubric for the full production medical product. New stored-photo sanitization, capture response validation and bounded image processing are implemented; 41 backend and 86 AI tests pass. The dated details below are historical. Clinical inference remains disabled.
 
 This is a development preview, not a validated diagnostic product. Working infrastructure and research experiments must not be presented as clinical capabilities.

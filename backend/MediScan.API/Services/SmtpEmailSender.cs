@@ -29,6 +29,7 @@ public sealed class SmtpEmailSender(IConfiguration config) : IVerificationEmailS
             Credentials = new NetworkCredential(config["Email:Smtp:Username"], config["Email:Smtp:Password"]),
             Timeout = 15000
         };
-        await smtp.SendMailAsync(message);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        await smtp.SendMailAsync(message, deadline.Token);
     }
 }

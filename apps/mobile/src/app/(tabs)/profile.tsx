@@ -135,6 +135,7 @@ export default function ProfileScreen() {
             ...(user?.role === 'Doctor' || user?.role === 'Admin' ? [{ label: '👨‍⚕️ Doctor Portal', action: () => router.push('/doctor') }] : []),
             { label: '🔐 Doctor Access Requests', action: () => router.push('/doctor/consents') },
             { label: '📋 Account Activity', action: () => router.push('/profile/activity') },
+            { label: '📦 My Data & Sessions', action: () => router.push('/profile/data') },
             { label: '🔒 Privacy & Data', action: () => router.push({ pathname: '/information/[topic]', params: { topic: 'privacy' } }) },
             { label: '❓ Help & Support', action: () => router.push({ pathname: '/information/[topic]', params: { topic: 'help' } }) },
           ].map((item) => (

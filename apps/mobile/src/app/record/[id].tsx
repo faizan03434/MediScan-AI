@@ -42,7 +42,7 @@ export default function ScanRecordScreen() {
           catch { setDeleteError('Unable to remove record. Please retry.'); }
           finally { setDeleting(false); }
         }} />
-        {confirmDelete && <View><Text style={{ color: Colors.textSecondary }}>This hides the record. Permanent photo deletion and retention controls are still pending.</Text>
+        {confirmDelete && <View><Text style={{ color: Colors.textSecondary }}>This hides the record immediately. Permanent removal follows the server retention policy; backup copies may remain under that policy.</Text>
           <Button title="Cancel" variant="outline" onPress={() => setConfirmDelete(false)} /></View>}
         {!!deleteError && <Text style={{ color: Colors.danger }}>{deleteError}</Text>}
       </>}

@@ -15,6 +15,8 @@ using Serilog;
 using MediScan.API.Services;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.DataProtection;
+using System.Security.Cryptography.X509Certificates;
 
 // ─────────────────────────────────────────────
 // Bootstrap Serilog early
@@ -115,12 +117,33 @@ try
             context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "unauthenticated",
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 120,
                 Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+        options.AddPolicy("account-export", context => RateLimitPartition.GetFixedWindowLimiter(
+            context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "unauthenticated",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     });
     builder.Services.AddSingleton(TimeProvider.System);
-    builder.Services.AddSingleton<EmailOtpStore>();
+    var keyDirectory = builder.Configuration["Authentication:DataProtection:KeyDirectory"]
+        ?? Path.Combine(builder.Environment.ContentRootPath, ".auth", "keys");
+    Directory.CreateDirectory(keyDirectory);
+    var protection = builder.Services.AddDataProtection().SetApplicationName("MediScan.Auth")
+        .PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
+    var protectionCertificate = builder.Configuration["Authentication:DataProtection:CertificatePath"];
+    if (!string.IsNullOrWhiteSpace(protectionCertificate))
+        protection.ProtectKeysWithCertificate(X509CertificateLoader.LoadPkcs12FromFile(protectionCertificate,
+            builder.Configuration["Authentication:DataProtection:CertificatePassword"]));
+    else if (OperatingSystem.IsWindows()) protection.ProtectKeysWithDpapi();
+    else if (!builder.Environment.IsDevelopment())
+        throw new InvalidOperationException("Configure a Data Protection certificate before running outside development on this platform.");
+    builder.Services.AddSingleton<IEmailOtpStore>(sp => new PersistentEmailOtpStore(
+        builder.Configuration["Authentication:Otp:DatabasePath"] ?? Path.Combine(builder.Environment.ContentRootPath, ".auth", "verification.db"),
+        sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IDataProtectionProvider>()));
     builder.Services.AddScoped<IVerificationEmailSender, SmtpEmailSender>();
     builder.Services.AddSingleton<IGoogleIdentityVerifier, GoogleIdentityVerifier>();
     builder.Services.AddScoped<AccountAccessService>();
+    builder.Services.AddScoped<DeletedRecordPurger>();
+    if (builder.Configuration.GetValue<bool>("DataRetention:DeletedRecordPurgeEnabled"))
+        builder.Services.AddHostedService<DeletedRecordPurgeWorker>();
     builder.Services.AddHttpClient("capture-guide", client => client.Timeout = TimeSpan.FromSeconds(10));
     builder.Services.AddHttpClient("image-storage", client => client.Timeout = TimeSpan.FromSeconds(30));
 
@@ -278,6 +301,7 @@ try
 catch (Exception ex)
 {
     Log.Fatal(ex, "Application startup failed");
+    Environment.ExitCode = 1;
 }
 finally
 {

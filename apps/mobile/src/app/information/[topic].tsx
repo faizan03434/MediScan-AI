@@ -5,7 +5,7 @@ import { Colors } from '../../theme/colors';
 
 const content = {
   privacy: { title: 'Privacy & your data', sections: [
-    ['Development environment', 'This preview uses a local database, private authenticated photo endpoints and HTTP over your Wi-Fi. Use test data. Production encryption, retention, export and permanent erasure are still pending.'],
+    ['Development environment', 'This preview uses a local database, private authenticated photo endpoints and HTTP over your Wi-Fi. Use test data. Profile > My Data & Sessions provides record export and all-device sign out. Permanent erasure and backup handling depend on the server retention policy; production deployment remains pending.'],
     ['Photo consent', 'Each health capture asks before upload. Only upload photos you are allowed to use. Saved records and photos belong to your signed-in account. Removing a record hides it; permanent file erasure is not implemented yet.'],
     ['Doctor access', 'Manage doctor access requests from Profile. Access must be granted through the consent workflow; an ordinary user cannot open the doctor portal.'],
     ['Account activity', 'Open Account Activity from Profile to review recorded actions through your account, including scan reads and changes. This development log is not yet a complete production security audit.'],

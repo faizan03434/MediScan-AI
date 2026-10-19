@@ -23,7 +23,9 @@ Alternatively configure private `backend/MediScan.API/appsettings.Local.json`, a
 
 Enable two-step verification in that Google account, then generate an app password. Paste it only into this local server file, never chat, Git, or an EXPO_PUBLIC variable. Gmail app passwords may be unavailable for some managed accounts. Google guide: https://support.google.com/accounts/answer/185833
 
-Restart the API, then open registration, request a code, and verify the received email. Check spam. Reset uses the same sender. Missing credentials display a configuration message; no account is created without successful verification. Codes expire in 10 minutes, are single-use, allow at most five failed attempts and have a 60-second resend cooldown. Auth endpoints are rate limited. Server memory holds hashed codes and pending password hashes; a restart invalidates pending challenges. Production requires a shared atomic challenge store and managed secrets.
+Restart the API, then open registration, request a code, and verify the received email. Check spam. Reset uses the same sender. Missing credentials display a configuration message; no account is created without successful verification. Codes expire in 10 minutes, are single-use, allow at most five failed attempts and have a 60-second resend cooldown. A persistent 15-minute budget allows three sends/five failures per email and purpose. Auth endpoints are rate limited.
+
+As of 19 October, pending payloads and keyed code digests are encrypted with ASP.NET Data Protection in `.auth/verification.db`; account scopes are hashed. `.auth/keys` holds the persistent key ring. Windows protects keys with DPAPI for the API's OS user. Non-development Linux/macOS requires `Authentication__DataProtection__CertificatePath` (private PFX) and optional `Authentication__DataProtection__CertificatePassword`; keys and the certificate must be securely retained. Never commit either. Changing OS user/key ring invalidates pending challenges. `Authentication__Otp__DatabasePath` and `Authentication__DataProtection__KeyDirectory` override the defaults. Atomic SQLite transactions support workers sharing the same local file and key ring; separate hosts/network filesystems still require a supported central store. The old memory store is used only by unit-test fixtures.
 
 ## Google OAuth project
 
@@ -56,4 +58,4 @@ Official references:
 
 ## Verification status
 
-SMTP transport and Google's live identity exchange need your credentials/configuration before an end-to-end test. Automated local tests exercise OTP registration/reset with an in-memory mail capture and real Identity/SQLite password handling; they do not send external mail. This development auth setup is not a HIPAA certification.
+The 19 October real SMTP reset request still returned HTTP 503, `Email delivery failed`. A cancellation deadline now bounds asynchronous delivery to 15 seconds. Credentials being present does not prove successful transport or inbox receipt. Google client IDs/live exchange remain unconfigured. Automated tests separately exercise captured mail, Identity/SQLite password handling, persistent encrypted challenge recovery, retry budgets and cross-worker single use. This development auth setup is not a HIPAA certification.

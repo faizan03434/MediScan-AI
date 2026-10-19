@@ -24,7 +24,7 @@ public class ResetPasswordRequest : VerifyEmailRequest
 public class GoogleSignInRequest { [Required, StringLength(10000)] public string IdToken { get; set; } = ""; }
 
 public sealed class AccountAccessService(UserManager<ApplicationUser> users, AppDbContext db,
-    EmailOtpStore codes, IVerificationEmailSender emailSender, IGoogleIdentityVerifier google,
+    IEmailOtpStore codes, IVerificationEmailSender emailSender, IGoogleIdentityVerifier google,
     IAuthService auth)
 {
     public async Task<OtpChallenge> RequestRegistrationAsync(RegisterDto dto)
