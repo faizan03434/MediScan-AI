@@ -119,4 +119,16 @@ public sealed class PersistentEmailOtpTests : IDisposable
         Assert.Throws<ArgumentException>(() => other.Consume(issued.ChallengeId, "a@example.com", "password_reset", issued.Code));
         Assert.Throws<ArgumentException>(() => Store().Consume(issued.ChallengeId, "a@example.com", "password_reset", issued.Code));
     }
+
+    [Fact]
+    public void AccountErasureRemovesAllPurposesWithoutAffectingOtherAccounts()
+    {
+        var reset = Store().Issue("a@example.com", "password_reset", "id");
+        var deletion = Store().Issue("a@example.com", "account_deletion", "id");
+        var other = Store().Issue("b@example.com", "password_reset", "other");
+        Store().ForgetAccount(" A@example.com ");
+        Assert.Throws<ArgumentException>(() => Store().Consume(reset.ChallengeId, "a@example.com", "password_reset", reset.Code));
+        Assert.Throws<ArgumentException>(() => Store().Consume(deletion.ChallengeId, "a@example.com", "account_deletion", deletion.Code));
+        Assert.Equal("other", Store().Consume(other.ChallengeId, "b@example.com", "password_reset", other.Code));
+    }
 }

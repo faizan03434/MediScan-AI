@@ -58,4 +58,6 @@ Official references:
 
 ## Verification status
 
+Account deletion now accepts a current password or a separate `account_deletion` email code and explicit `DELETE` confirmation. It disables sessions/consents immediately and queues live-data cleanup. A delivery failure leaves the account enabled. See [account deletion and readiness](ACCOUNT_DELETION_AND_READINESS.md) for receipts, recovery and backup limitations.
+
 The 19 October real SMTP reset request still returned HTTP 503, `Email delivery failed`. A cancellation deadline now bounds asynchronous delivery to 15 seconds. Credentials being present does not prove successful transport or inbox receipt. Google client IDs/live exchange remain unconfigured. Automated tests separately exercise captured mail, Identity/SQLite password handling, persistent encrypted challenge recovery, retry budgets and cross-worker single use. This development auth setup is not a HIPAA certification.

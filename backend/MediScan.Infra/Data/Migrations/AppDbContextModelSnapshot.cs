@@ -17,6 +17,53 @@ namespace MediScan.Infra.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.1");
 
+            modelBuilder.Entity("MediScan.Core.Entities.AccountDeletionJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LeaseToken")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LeaseUntil")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReceiptHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceiptHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.HasIndex("CompletedAt", "NextAttemptAt");
+
+                    b.ToTable("AccountDeletionJobs");
+                });
+
             modelBuilder.Entity("MediScan.Core.Entities.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -565,6 +612,27 @@ namespace MediScan.Infra.Data.Migrations
                     b.HasIndex("UserId", "ScanType");
 
                     b.ToTable("ScanRecords");
+                });
+
+            modelBuilder.Entity("MediScan.Core.Entities.StoredMedia", b =>
+                {
+                    b.Property<string>("BlobName")
+                        .HasMaxLength(450)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("BlobName");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("StoredMedia");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>

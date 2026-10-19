@@ -16,10 +16,27 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
     public DbSet<PatientConsent> PatientConsents => Set<PatientConsent>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<AccountDeletionJob> AccountDeletionJobs => Set<AccountDeletionJob>();
+    public DbSet<StoredMedia> StoredMedia => Set<StoredMedia>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<AccountDeletionJob>(e => {
+            e.HasKey(j => j.Id);
+            e.Property(j => j.UserId).HasMaxLength(450);
+            e.Property(j => j.ReceiptHash).HasMaxLength(64).IsRequired();
+            e.Property(j => j.LeaseToken).HasMaxLength(32);
+            e.HasIndex(j => j.ReceiptHash).IsUnique();
+            e.HasIndex(j => j.UserId).IsUnique();
+            e.HasIndex(j => new { j.CompletedAt, j.NextAttemptAt });
+        });
+        builder.Entity<StoredMedia>(e => {
+            e.HasKey(m => m.BlobName);
+            e.Property(m => m.BlobName).HasMaxLength(450);
+            e.Property(m => m.UserId).HasMaxLength(450).IsRequired();
+            e.HasIndex(m => m.UserId);
+        });
 
         // ── ApplicationUser ────────────────────────────────────
         builder.Entity<ApplicationUser>(e =>

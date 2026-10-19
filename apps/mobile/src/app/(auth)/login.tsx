@@ -33,5 +33,6 @@ export default function LoginScreen() {
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 22 }}><View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} /><Text style={{ color: Colors.textMuted, fontSize: 12 }}>or</Text><View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} /></View>
     <GoogleSignInButton />
     <TouchableOpacity onPress={() => router.push('/(auth)/register')} style={{ marginTop: 24 }}><Text style={{ color: Colors.textSecondary, textAlign: 'center' }}>New here? <Text style={{ color: Colors.primary, fontWeight: '700' }}>Create an account</Text></Text></TouchableOpacity>
+    <TouchableOpacity accessibilityRole="button" onPress={() => router.push('/deletion-status')} style={{ marginTop: 18 }}><Text style={{ color: Colors.textSecondary, textAlign: 'center' }}>Check account deletion status</Text></TouchableOpacity>
   </AuthShell>;
 }

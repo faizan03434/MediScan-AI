@@ -53,6 +53,11 @@ export default function AccountDataScreen() {
           <Button title="Keep my sessions" variant="outline" disabled={busy !== null} onPress={() => setConfirm(false)} /></>
           : <Button title="Sign out all devices" variant="outline" disabled={busy !== null} onPress={() => setConfirm(true)} />}
       </View>
+      <View style={{ padding: 20, borderRadius: 18, gap: 14, backgroundColor: Colors.bgCard, borderWidth: 1, borderColor: Colors.border }}>
+        <Text style={{ color: Colors.textPrimary, fontSize: 19, fontWeight: '700' }}>Delete your account</Text>
+        <Text style={{ color: Colors.textSecondary, lineHeight: 22 }}>Verify your password or email code to disable access and request permanent cleanup of live account data. Export your records first.</Text>
+        <Button title="Account deletion options" variant="outline" disabled={busy !== null} onPress={() => router.push('/profile/delete')} />
+      </View>
       {!!message && <Text accessibilityLiveRegion="polite" style={{ color: Colors.textPrimary, lineHeight: 22 }}>{message}</Text>}
     </ScrollView>
   </SafeAreaView>;

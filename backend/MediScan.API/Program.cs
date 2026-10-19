@@ -141,11 +141,15 @@ try
     builder.Services.AddScoped<IVerificationEmailSender, SmtpEmailSender>();
     builder.Services.AddSingleton<IGoogleIdentityVerifier, GoogleIdentityVerifier>();
     builder.Services.AddScoped<AccountAccessService>();
+    builder.Services.AddScoped<AccountDeletionService>();
+    builder.Services.AddScoped<AccountDeletionProcessor>();
+    builder.Services.AddHostedService<AccountDeletionWorker>();
     builder.Services.AddScoped<DeletedRecordPurger>();
     if (builder.Configuration.GetValue<bool>("DataRetention:DeletedRecordPurgeEnabled"))
         builder.Services.AddHostedService<DeletedRecordPurgeWorker>();
     builder.Services.AddHttpClient("capture-guide", client => client.Timeout = TimeSpan.FromSeconds(10));
     builder.Services.AddHttpClient("image-storage", client => client.Timeout = TimeSpan.FromSeconds(30));
+    builder.Services.AddHttpClient("readiness", client => client.Timeout = TimeSpan.FromSeconds(3));
 
     // ─── CORS ──────────────────────────────────
     builder.Services.AddCors(options =>
@@ -183,8 +187,8 @@ try
                 sp.GetRequiredService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>(),
                 sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LocalStorageService>>()
             );
-        return new SanitizedImageStorageService(rawStorage,
-            sp.GetRequiredService<IHttpClientFactory>().CreateClient("image-storage"), config);
+        return new AccountStorageService(new SanitizedImageStorageService(rawStorage,
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("image-storage"), config), sp.GetRequiredService<AppDbContext>());
     });
     builder.Services.AddScoped<IScanService, ScanService>();
     builder.Services.AddScoped<IMedicationService, MedicationService>();
@@ -298,6 +302,7 @@ try
     Log.Information("🚀 MediScan AI API starting on {Environment}", app.Environment.EnvironmentName);
     await app.RunAsync();
 }
+catch (HostAbortedException) { /* EF design-time host discovery. */ }
 catch (Exception ex)
 {
     Log.Fatal(ex, "Application startup failed");

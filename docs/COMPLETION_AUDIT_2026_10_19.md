@@ -1,5 +1,7 @@
 # MediScan completion audit — 19 October 2026
 
+**Current checkpoint:** [account deletion/readiness evidence](ACCOUNT_DELETION_AND_READINESS.md) and [delivery ledger](DELIVERY_STRATEGY.md) update the engineering estimate to **51/100 complete, 49/100 remaining**, with 66 backend/87 AI tests passing. Earlier estimates below are historical; clinical validation is still incomplete.
+
 **Later checkpoint:** [Delivery strategy and implementation ledger](DELIVERY_STRATEGY.md) records persistent OTP, account exports/all-device sign-out, opt-in deleted-record cleanup, deployment exclusions/volumes and preview host recovery. The updated engineering estimate is **49/100 complete, 51/100 remaining**. The 45/100 assessment below is the earlier baseline; clinical acceptance remains incomplete.
 
 **Engineering estimate: 45/100 complete, 55/100 remaining for the requested production medical product.** This is a manually weighted delivery estimate, not measured model accuracy, a clinical approval score or a promise of remaining calendar time. The app foundation is further along than medical validation. A working capture/history screen does not constitute disease detection.

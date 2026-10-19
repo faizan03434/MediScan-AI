@@ -113,6 +113,12 @@ async def root():
     }
 
 
+@app.get("/health/live", tags=["Info"])
+async def live():
+    # No model/GPU import on an availability probe.
+    return {"status": "running", "clinical_inference_enabled": False}
+
+
 @app.get("/health", tags=["Info"])
 async def health():
     import torch

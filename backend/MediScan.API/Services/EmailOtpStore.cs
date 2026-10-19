@@ -10,6 +10,7 @@ public interface IEmailOtpStore
     IssuedOtp Issue(string email, string purpose, object? payload);
     object? Consume(string id, string email, string purpose, string code);
     void Cancel(string id);
+    void ForgetAccount(string email);
 }
 
 // Single-process development store. Production must share atomic challenges across instances.
@@ -83,6 +84,16 @@ public sealed class EmailOtpStore(TimeProvider clock) : IEmailOtpStore
     }
 
     public void Cancel(string id) { lock (_gate) _entries.Remove(id); }
+    public void ForgetAccount(string email)
+    {
+        email = email.Trim().ToUpperInvariant();
+        lock (_gate)
+        {
+            foreach (var id in _entries.Where(e => e.Value.Email == email).Select(e => e.Key).ToArray()) _entries.Remove(id);
+            foreach (var key in _budgets.Keys.Where(k => k.EndsWith(":" + email, StringComparison.Ordinal)).ToArray()) _budgets.Remove(key);
+            foreach (var key in _cooldowns.Keys.Where(k => k.EndsWith(":" + email, StringComparison.Ordinal)).ToArray()) _cooldowns.Remove(key);
+        }
+    }
     private byte[] Hash(string id, string code) => HMACSHA256.HashData(_hashKey, Encoding.UTF8.GetBytes(id + ":" + code));
     private static ArgumentException Invalid() => new("Invalid or expired code. Request a new code if needed.");
 }

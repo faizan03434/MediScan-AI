@@ -97,6 +97,14 @@ public sealed class PersistentEmailOtpStore : IEmailOtpStore
         tx.Commit();
     }
 
+    public void ForgetAccount(string email)
+    {
+        using var db = Open(); using var tx = db.BeginTransaction(deferred: false);
+        foreach (var purpose in new[] { "registration", "password_reset", "account_deletion" })
+            Execute(db, tx, "DELETE FROM EmailVerification WHERE Scope=$scope", ("$scope", Scope(email, purpose)));
+        tx.Commit();
+    }
+
     private SqliteConnection Open() { var db = new SqliteConnection(connectionString); db.Open(); return db; }
     private static string Scope(string email, string purpose) => Convert.ToHexString(SHA256.HashData(
         Encoding.UTF8.GetBytes(purpose + ":" + email.Trim().ToUpperInvariant())));

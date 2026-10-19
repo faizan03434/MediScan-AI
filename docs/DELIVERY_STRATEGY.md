@@ -1,5 +1,7 @@
 # Delivery strategy and implementation ledger — 19 October 2026
 
+**Latest checkpoint:** [account deletion and readiness](ACCOUNT_DELETION_AND_READINESS.md) adds re-authenticated live-account cleanup, durable recovery/receipts, upload inventory and dependency readiness. 66 backend and 87 AI tests pass, plus mobile checks, web export and a running synthetic-account deletion check. Updated engineering estimate: **51/100 complete, 49/100 remaining**. Against the table below, records/privacy advances from 12 to 13 and release operations from 3 to 4; all other scores remain unchanged. Backup/restore erasure and deployed/clinical evidence remain open. The earlier 49/100 checkpoint is preserved below.
+
 The full medical product has six work streams. Build in dependency order, with a runnable checkpoint and evidence for each change. Clinical approval is a separate evidence requirement; changing UI or a readiness flag cannot finish it. [The original 45/100 assessment](COMPLETION_AUDIT_2026_10_19.md) is the baseline. After this checkpoint the same manually weighted engineering estimate is **49/100 complete, 51/100 remaining**, not measured model accuracy or remaining calendar time.
 
 | Deliverable | Weight | Current earned | Change from baseline |
@@ -29,8 +31,8 @@ Verification: **54 backend tests passed**, mobile TypeScript/ESLint passed, fres
 | Stream | Next concrete deliverable | Completion evidence |
 | --- | --- | --- |
 | Account access | Resolve SMTP account/network delivery, configure actual Google OAuth IDs; central OTP store for multiple hosts | Delivered/verified email, real Google sign-in on signed Android/iOS/web, restart/multi-host abuse testing |
-| Privacy lifecycle | Full account deletion/re-authentication, retention decision, backup expiry/restore and data subject workflow | Synthetic end-to-end purge covering all records/photos plus documented backup handling and failure recovery |
-| Release infrastructure | HTTPS deployment, migration/role provisioning, monitoring/readiness and secret management | Successful clean deployment, dependency health, restart and restore drills; no demo credentials in production |
+| Privacy lifecycle | Retention decision, backup expiry/restore reconciliation and data subject operations; live account deletion now implemented | Backup-aware erasure/restore drill and production failure/load tests |
+| Release infrastructure | HTTPS deployment, migration/role provisioning, monitoring and secret management; dependency readiness now implemented | Successful clean deployment, restart and restore drills; no demo credentials in production |
 | Mobile/device QA | Signed builds and real-device camera focus, permissions, rectangle alignment, auto-capture and failure recovery | Android and iPhone acceptance checklist with device/version evidence |
 | Data/model research | Resolve rights, actual modality/labels, subject mapping; improve weak models using reserved selection data | Reproducible manifests/checkpoints, no cross-subject split leakage, task-specific results; untouched external test |
 | Clinical acceptance | Clinical lead, verified reference labels, separate Pakistan cohort, calibration and unfamiliar-condition evaluation | Per-task acceptance report with independent subjects and uncertainty; enable only accepted tasks |

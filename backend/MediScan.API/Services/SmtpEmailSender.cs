@@ -19,7 +19,7 @@ public sealed class SmtpEmailSender(IConfiguration config) : IVerificationEmailS
         var sender = config["Email:From"] ?? "iamfaizan884@gmail.com";
         using var message = new MailMessage(new MailAddress(sender, "MediScan"), new MailAddress(email))
         {
-            Subject = purpose == "registration" ? "Verify your MediScan email" : "Reset your MediScan password",
+            Subject = purpose switch { "registration" => "Verify your MediScan email", "account_deletion" => "Confirm MediScan account deletion", _ => "Reset your MediScan password" },
             Body = $"Your MediScan verification code is {code}.\n\nIt expires in 10 minutes and can be used once. Do not share this code. If you did not request it, ignore this email."
         };
         using var smtp = new SmtpClient(config["Email:Smtp:Host"] ?? "smtp.gmail.com",

@@ -18,8 +18,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediScan.Tests;
 
-public class AccountAccessTests
+public partial class AccountAccessTests
 {
+    private sealed class TestClock : TimeProvider
+    {
+        public DateTimeOffset Now = DateTimeOffset.UtcNow;
+        public override DateTimeOffset GetUtcNow() => Now;
+    }
     private sealed class CapturedMail : IVerificationEmailSender
     {
         public bool IsConfigured { get; set; } = true;
@@ -42,6 +47,8 @@ public class AccountAccessTests
         private ServiceProvider provider = null!;
         public readonly CapturedMail Mail = new();
         public readonly Google Google = new();
+        public readonly TestClock Clock = new();
+        public IEmailOtpStore Codes => provider.GetRequiredService<IEmailOtpStore>();
         public AccountAccessService Access => provider.GetRequiredService<AccountAccessService>();
         public IAuthService Auth => provider.GetRequiredService<IAuthService>();
         public UserManager<ApplicationUser> Users => provider.GetRequiredService<UserManager<ApplicationUser>>();
@@ -55,7 +62,7 @@ public class AccountAccessTests
             services.AddDbContext<AppDbContext>(o => o.UseSqlite(connection));
             services.AddIdentityCore<ApplicationUser>(o => { o.User.RequireUniqueEmail = true; o.Password.RequiredLength = 8; o.Password.RequireNonAlphanumeric = false; })
                 .AddRoles<IdentityRole>().AddEntityFrameworkStores<AppDbContext>().AddDefaultTokenProviders();
-            services.AddSingleton(TimeProvider.System); services.AddSingleton<IEmailOtpStore, EmailOtpStore>();
+            services.AddSingleton<TimeProvider>(Clock); services.AddSingleton<IEmailOtpStore, EmailOtpStore>();
             services.AddSingleton<IVerificationEmailSender>(Mail); services.AddSingleton<IGoogleIdentityVerifier>(Google);
             services.AddScoped<IAuthService, AuthService>(); services.AddScoped<AccountAccessService>();
             provider = services.BuildServiceProvider(); await Db.Database.EnsureCreatedAsync();
