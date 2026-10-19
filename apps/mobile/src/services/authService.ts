@@ -1,5 +1,6 @@
 import api, { saveTokens, clearTokens } from './api';
 import type { ApiResponse, User } from '../types';
+import { sessionVersion } from './sessionEvents';
 
 export interface LoginPayload {
   email: string;
@@ -40,8 +41,10 @@ export interface UpdateProfilePayload {
 
 const authService = {
   async login(payload: LoginPayload): Promise<AuthResponse> {
+    const revision = sessionVersion();
     const { data } = await api.post<ApiResponse<AuthResponse>>('/auth/login', payload);
     if (!data.success || !data.data) throw new Error(data.message);
+    if (revision !== sessionVersion()) throw new Error('Session changed. Sign in again.');
     await saveTokens(data.data.accessToken, data.data.refreshToken);
     return data.data;
   },
@@ -53,8 +56,10 @@ const authService = {
   },
 
   async verifyRegistration(payload: VerifyEmailPayload): Promise<AuthResponse> {
+    const revision = sessionVersion();
     const { data } = await api.post<ApiResponse<AuthResponse>>('/auth/register/verify', payload);
     if (!data.success || !data.data) throw new Error(data.message);
+    if (revision !== sessionVersion()) throw new Error('Session changed. Sign in again.');
     await saveTokens(data.data.accessToken, data.data.refreshToken);
     return data.data;
   },
@@ -68,8 +73,10 @@ const authService = {
     await api.post('/auth/password/reset', payload);
   },
   async googleSignIn(idToken: string, link = false): Promise<AuthResponse | null> {
+    const revision = sessionVersion();
     const { data } = await api.post<ApiResponse<AuthResponse>>(link ? '/auth/google/link' : '/auth/google', { idToken });
     if (!data.success) throw new Error(data.message);
+    if (revision !== sessionVersion()) throw new Error('Session changed. Sign in again.');
     if (link) return null;
     if (!data.data) throw new Error('Google sign-in returned no account.');
     await saveTokens(data.data.accessToken, data.data.refreshToken);
@@ -77,10 +84,11 @@ const authService = {
   },
 
   async logout(refreshToken: string): Promise<void> {
+    const revision = sessionVersion();
     try {
       await api.post('/auth/revoke', { refreshToken });
     } finally {
-      await clearTokens();
+      if (revision === sessionVersion()) await clearTokens();
     }
   },
 

@@ -6,6 +6,7 @@ import axios, { create, AxiosInstance, AxiosError, InternalAxiosRequestConfig } 
 import * as SecureStore from '../utils/secureStorage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { notifySessionCleared } from './sessionEvents';
 
 const host = Platform.OS === 'web' && typeof location !== 'undefined'
   ? location.hostname : Constants.expoConfig?.hostUri?.split(':')[0] ?? 'localhost';
@@ -15,6 +16,13 @@ export const resolveImageUrl = (url?: string) => url?.startsWith('/')
 
 const TOKEN_KEY   = 'mediscan_access_token';
 const REFRESH_KEY = 'mediscan_refresh_token';
+let sessionRevision = 0;
+let tokenWrites: Promise<void> = Promise.resolve();
+const writeTokens = (operation: () => Promise<void>) => {
+  const next = tokenWrites.then(operation);
+  tokenWrites = next.catch(() => {});
+  return next;
+};
 
 // ── Create Axios instance ──────────────────────────────────────
 const api: AxiosInstance = create({
@@ -28,7 +36,7 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   const token = await SecureStore.getItemAsync(TOKEN_KEY);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-  }
+  } else { delete config.headers.Authorization; }
   return config;
 });
 
@@ -50,6 +58,7 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry
         && (!originalRequest.url?.startsWith('/auth/') || originalRequest.url === '/auth/profile')) {
+      originalRequest._retry = true;
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -59,27 +68,31 @@ api.interceptors.response.use(
         });
       }
 
-      originalRequest._retry = true;
       isRefreshing = true;
+      const revision = sessionRevision;
 
       try {
         const refreshToken = await SecureStore.getItemAsync(REFRESH_KEY);
         if (!refreshToken) throw new Error('No refresh token');
 
-        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken });
+        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken }, { timeout: 15_000 });
         const newToken = data.data.accessToken;
-
-        await SecureStore.setItemAsync(TOKEN_KEY, newToken);
-        await SecureStore.setItemAsync(REFRESH_KEY, data.data.refreshToken);
-
-        api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+        const rotated = data.data.refreshToken;
+        if (typeof newToken !== 'string' || !newToken || typeof rotated !== 'string' || !rotated) {
+          throw new Error('Invalid refresh response');
+        }
+        await writeTokens(async () => {
+          if (sessionRevision !== revision) throw new Error('Session changed during refresh');
+          await SecureStore.setItemAsync(TOKEN_KEY, newToken);
+          await SecureStore.setItemAsync(REFRESH_KEY, rotated);
+        });
+        if (sessionRevision !== revision) throw new Error('Session changed during refresh');
         processQueue(null, newToken);
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        // Clear tokens — force logout
-        await SecureStore.deleteItemAsync(TOKEN_KEY);
-        await SecureStore.deleteItemAsync(REFRESH_KEY);
+        // An obsolete refresh must never clear a newly signed-in account.
+        if (sessionRevision === revision) await clearTokens();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -92,14 +105,23 @@ api.interceptors.response.use(
 
 // ── Token helpers ─────────────────────────────────────────────
 export const saveTokens = async (accessToken: string, refreshToken: string) => {
-  await SecureStore.setItemAsync(TOKEN_KEY, accessToken);
-  await SecureStore.setItemAsync(REFRESH_KEY, refreshToken);
+  const revision = ++sessionRevision;
+  notifySessionCleared();
+  await writeTokens(async () => {
+    if (revision !== sessionRevision) return;
+    await SecureStore.setItemAsync(TOKEN_KEY, accessToken);
+    await SecureStore.setItemAsync(REFRESH_KEY, refreshToken);
+  });
 };
 
 export const clearTokens = async () => {
+  ++sessionRevision;
   delete api.defaults.headers.common.Authorization;
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
-  await SecureStore.deleteItemAsync(REFRESH_KEY);
+  notifySessionCleared();
+  await writeTokens(async () => {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    await SecureStore.deleteItemAsync(REFRESH_KEY);
+  });
 };
 
 export const getAccessToken = () => SecureStore.getItemAsync(TOKEN_KEY);

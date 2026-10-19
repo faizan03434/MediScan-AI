@@ -176,16 +176,26 @@ public class AdminController : ControllerBase
     [HttpPatch("users/{userId}")]
     public async Task<IActionResult> UpdateUserStatus(string userId, [FromBody] UpdateStatusRequest req)
     {
+        await using var transaction = await AccountMutationLock.AcquireAsync(_db);
+        if (!await ActingAdminIsCurrent()) return Unauthorized();
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null)
             return NotFound(ApiResponse<object>.Fail("User not found."));
 
+        if (req.IsActive && await _db.AccountDeletionJobs.AnyAsync(j => j.UserId == userId))
+            return Conflict(ApiResponse<object>.Fail("An account pending deletion cannot be reactivated."));
+        if (!req.IsActive && user.IsActive && user.Role == "Admin" && await _db.Users.CountAsync(u => u.Role == "Admin" && u.IsActive) < 2)
+            return Conflict(ApiResponse<object>.Fail("Transfer administrator access before disabling the last administrator."));
         user.IsActive = req.IsActive;
-        await _userManager.UpdateAsync(user);
+        user.SecurityStamp = Guid.NewGuid().ToString("N");
+        var updated = await _userManager.UpdateAsync(user);
+        if (!updated.Succeeded) return Conflict(ApiResponse<object>.Fail("Account update failed."));
+        await _db.RefreshTokens.Where(t => t.UserId == userId).ExecuteDeleteAsync();
 
         var adminId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         await _audit.LogAsync("Admin.UpdateUserStatus", "User", userId, adminId,
             newValues: $"isActive={req.IsActive}");
+        await transaction.CommitAsync();
 
         return Ok(ApiResponse<object>.Ok(null!, "User status updated."));
     }
@@ -194,6 +204,8 @@ public class AdminController : ControllerBase
     [HttpPatch("users/{userId}/role")]
     public async Task<IActionResult> UpdateUserRole(string userId, [FromBody] UpdateRoleRequest req)
     {
+        await using var transaction = await AccountMutationLock.AcquireAsync(_db);
+        if (!await ActingAdminIsCurrent()) return Unauthorized();
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null)
             return NotFound(ApiResponse<object>.Fail("User not found."));
@@ -201,21 +213,36 @@ public class AdminController : ControllerBase
         var validRoles = new[] { "User", "Doctor", "Admin" };
         if (!validRoles.Contains(req.Role))
             return BadRequest(ApiResponse<object>.Fail("Invalid role."));
+        if (user.Role == "Admin" && user.IsActive && req.Role != "Admin" && await _db.Users.CountAsync(u => u.Role == "Admin" && u.IsActive) < 2)
+            return Conflict(ApiResponse<object>.Fail("Transfer administrator access before demoting the last administrator."));
 
         var oldRole = user.Role;
         user.Role = req.Role;
-        await _userManager.UpdateAsync(user);
+        user.SecurityStamp = Guid.NewGuid().ToString("N");
+        if (!(await _userManager.UpdateAsync(user)).Succeeded)
+            return Conflict(ApiResponse<object>.Fail("Account update failed."));
 
         // Update Identity roles
         var currentRoles = await _userManager.GetRolesAsync(user);
-        await _userManager.RemoveFromRolesAsync(user, currentRoles);
-        await _userManager.AddToRoleAsync(user, req.Role);
+        if (!(await _userManager.RemoveFromRolesAsync(user, currentRoles)).Succeeded ||
+            !(await _userManager.AddToRoleAsync(user, req.Role)).Succeeded)
+            return Conflict(ApiResponse<object>.Fail("Role update failed."));
+        await _db.RefreshTokens.Where(t => t.UserId == userId).ExecuteDeleteAsync();
 
         var adminId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         await _audit.LogAsync("Admin.UpdateUserRole", "User", userId, adminId,
             oldValues: $"role={oldRole}", newValues: $"role={req.Role}");
+        await transaction.CommitAsync();
 
         return Ok(ApiResponse<object>.Ok(null!, "User role updated."));
+    }
+
+    private async Task<bool> ActingAdminIsCurrent()
+    {
+        var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var stamp = User.FindFirstValue("sst");
+        return !string.IsNullOrEmpty(stamp) && await _db.Users.AsNoTracking()
+            .AnyAsync(u => u.Id == id && u.IsActive && u.Role == "Admin" && u.SecurityStamp == stamp);
     }
 
     // ── Scans ─────────────────────────────────────────────────

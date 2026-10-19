@@ -533,6 +533,10 @@ namespace MediScan.Infra.Data.Migrations
                     b.Property<DateTime?>("RevokedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("SecurityStamp")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Token")
                         .IsRequired()
                         .HasMaxLength(500)

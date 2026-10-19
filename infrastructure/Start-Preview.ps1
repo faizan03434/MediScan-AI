@@ -54,7 +54,22 @@ if (-not (Test-LocalPort 8081)) {
     $env:REACT_NATIVE_PACKAGER_HOSTNAME = $LanAddress
     Start-Process -FilePath 'node' -ArgumentList "`"$expoCli`"",'start','--lan','--port','8081' -WorkingDirectory $mobileDir -WindowStyle Hidden -RedirectStandardOutput (Join-Path $previewDir 'expo.log') -RedirectStandardError (Join-Path $previewDir 'expo-error.log') | Out-Null
 }
+$ready = $false
+for ($attempt = 0; $attempt -lt 30; $attempt++) {
+    try {
+        $apiHealth = Invoke-RestMethod -Uri 'http://127.0.0.1:5000/api/v1/health/ready' -TimeoutSec 3
+        $manifest = Invoke-RestMethod -Uri 'http://127.0.0.1:8081' -Headers @{
+            'expo-platform' = 'ios'; Accept = 'application/expo+json'
+        } -TimeoutSec 3
+        if ($apiHealth.status -eq 'ready' -and ([uri]$manifest.launchAsset.url).Host -eq $LanAddress) {
+            $ready = $true; break
+        }
+    } catch { }
+    Start-Sleep -Milliseconds 500
+}
+if (-not $ready) { throw "Preview did not become ready. Check API, AI and Expo logs in $previewDir before using the QR." }
 & node (Join-Path $PSScriptRoot 'generate_preview_qr.cjs') $LanAddress
+if ($LASTEXITCODE -ne 0) { throw 'Preview QR generation failed.' }
 Write-Host "Android / iPhone landing page: http://${LanAddress}:5000/preview"
 Write-Host "Expo Go link: exp://${LanAddress}:8081"
 Write-Host "Browser preview: http://${LanAddress}:8081"

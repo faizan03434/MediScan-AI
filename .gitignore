@@ -167,3 +167,4 @@ backend/MediScan.API/wwwroot/uploads/
 # Local authentication secrets
 **/appsettings.Local.json
 **/.auth/
+**/.privacy/

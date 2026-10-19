@@ -19,8 +19,8 @@ public partial class AccountAccessTests
         public Task<(string Url, string BlobName)> UploadAsync(Stream stream, string name, string type, string folder = "scans")
         { Uploads++; Files.Add("uploaded.png"); return Task.FromResult(("/media/uploaded.png", "uploaded.png")); }
     }
-    private static AccountDeletionService Deletion(Fixture f) => new(f.Db, f.Users, f.Codes, f.Mail, f.Clock);
-    private static AccountDeletionProcessor Processor(Fixture f, IStorageService storage) => new(f.Db, storage, f.Codes, f.Clock, NullLogger<AccountDeletionProcessor>.Instance);
+    private static AccountDeletionService Deletion(Fixture f) => new(f.Db, f.Users, f.Codes, f.Mail, f.Clock, f.Ledger);
+    private static AccountDeletionProcessor Processor(Fixture f, IStorageService storage) => new(f.Db, storage, f.Codes, f.Clock, NullLogger<AccountDeletionProcessor>.Instance, f.Ledger);
     private static DeleteAccountRequest Confirm(string? password = "Password123") => new() { Confirmation = "DELETE", Password = password };
 
     [Fact]
@@ -141,5 +141,19 @@ public partial class AccountAccessTests
         await Deletion(f).RequestAsync(owner.User.Id, Confirm());
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => guarded.UploadAsync(new MemoryStream([1]), "x.png", "image/png", "scans/" + owner.User.Id));
         Assert.Equal(1, storage.Uploads);
+    }
+
+    [Fact]
+    public async Task SignedDeletionIntentIsRecoveredBeforeRestoredAccountCanStayActive()
+    {
+        await using var f = new Fixture(); await f.Initialize(); var owner = await f.Auth.RegisterAsync(Registration());
+        f.Ledger.Record(owner.User.Id, f.Clock.Now.UtcDateTime);
+        await Processor(f, new DeletionStorage()).RecoverLedgerIntentsAsync(default);
+        f.Db.ChangeTracker.Clear();
+        Assert.False((await f.Users.FindByIdAsync(owner.User.Id))!.IsActive);
+        Assert.Empty(await f.Db.RefreshTokens.Where(t => t.UserId == owner.User.Id).ToListAsync());
+        Assert.Single(await f.Db.AccountDeletionJobs.ToListAsync());
+        Assert.Equal(1, await Processor(f, new DeletionStorage()).RunAsync(default));
+        f.Db.ChangeTracker.Clear(); Assert.Null(await f.Users.FindByIdAsync(owner.User.Id));
     }
 }

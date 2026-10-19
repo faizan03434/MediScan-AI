@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { errorMessage } from '../utils/errorMessage';
+import { onSessionCleared, sessionVersion } from '../services/sessionEvents';
 import medicationService, {
   type DrugInfo,
   type MedicationRecord,
@@ -35,53 +36,64 @@ const useMedicationStore = create<MedicationState & MedicationActions>((set) => 
   error: null,
 
   searchByName: async (query) => {
+    const revision = sessionVersion();
     set({ isLoading: true, error: null });
     try {
       const result = await medicationService.searchByName(query);
+      if (revision !== sessionVersion()) throw new Error('Session changed. Search again after signing in.');
       set({ currentDrug: result, isLoading: false });
       return result;
     } catch (err: unknown) {
       const msg = errorMessage(err);
-      set({ isLoading: false, error: msg });
+      if (revision === sessionVersion()) set({ isLoading: false, error: msg });
       throw err;
     }
   },
 
   searchByBarcode: async (barcode) => {
+    const revision = sessionVersion();
     set({ isLoading: true, error: null });
     try {
       const result = await medicationService.searchByBarcode(barcode);
+      if (revision !== sessionVersion()) throw new Error('Session changed. Search again after signing in.');
       set({ currentDrug: result, isLoading: false });
       return result;
     } catch (err: unknown) {
       const msg = errorMessage(err);
-      set({ isLoading: false, error: msg });
+      if (revision === sessionVersion()) set({ isLoading: false, error: msg });
       throw err;
     }
   },
 
   analyzePrescription: async (imageUri, doctorName, notes) => {
+    const revision = sessionVersion();
     set({ isLoading: true, error: null });
     try {
       const result = await medicationService.analyzePrescription(imageUri, doctorName, notes);
+      if (revision !== sessionVersion()) throw new Error('Session changed. Open the prescription again after signing in.');
       set({ currentPrescription: result, isLoading: false });
       return result;
     } catch (err: unknown) {
       const msg = errorMessage(err);
-      set({ isLoading: false, error: msg });
+      if (revision === sessionVersion()) set({ isLoading: false, error: msg });
       throw err;
     }
   },
 
   loadHistory: async () => {
+    const revision = sessionVersion();
     try {
       const result = await medicationService.getHistory();
-      set({ history: result.items });
+      if (revision === sessionVersion()) set({ history: result.items });
     } catch { /* silent fail */ }
   },
 
   clearCurrent: () => set({ currentDrug: null, currentPrescription: null }),
   clearError: () => set({ error: null }),
+}));
+
+onSessionCleared(() => useMedicationStore.setState({
+  currentDrug: null, history: [], currentPrescription: null, isLoading: false, error: null,
 }));
 
 export default useMedicationStore;

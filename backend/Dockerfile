@@ -7,6 +7,9 @@ COPY MediScan.sln .
 COPY MediScan.API/MediScan.API.csproj         MediScan.API/
 COPY MediScan.Core/MediScan.Core.csproj       MediScan.Core/
 COPY MediScan.Infra/MediScan.Infra.csproj     MediScan.Infra/
+COPY MediScan.Migrations.Postgres/MediScan.Migrations.Postgres.csproj MediScan.Migrations.Postgres/
+COPY MediScan.Operations/MediScan.Operations.csproj MediScan.Operations/
+COPY MediScan.Tools/MediScan.Tools.csproj MediScan.Tools/
 COPY MediScan.Tests/MediScan.Tests.csproj     MediScan.Tests/
 
 # Restore packages
@@ -28,8 +31,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
     && adduser --disabled-password --gecos "" appuser
 COPY --from=build /app/publish .
-RUN mkdir -p /app/.auth /app/wwwroot/uploads \
-    && chown -R appuser:appuser /app/.auth /app/wwwroot
+RUN mkdir -p /app/.auth /app/.privacy /app/wwwroot/uploads \
+    && chown -R appuser:appuser /app/.auth /app/.privacy /app/wwwroot
 USER appuser
 
 EXPOSE 8080

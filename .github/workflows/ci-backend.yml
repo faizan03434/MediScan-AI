@@ -68,6 +68,7 @@ jobs:
           --collect:"XPlat Code Coverage"
         working-directory: backend
         env:
+          MEDISCAN_TEST_POSTGRES: Host=localhost;Port=5432;Database=postgres;Username=mediscan_user;Password=mediscan_pass
           ConnectionStrings__DefaultConnection: >
             Host=localhost;Port=5432;Database=mediscan_test;
             Username=mediscan_user;Password=mediscan_pass
@@ -88,7 +89,6 @@ jobs:
     name: Docker Build Check
     runs-on: ubuntu-latest
     needs: build-and-test
-    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout
@@ -99,13 +99,19 @@ jobs:
 
       - name: Verify image starts
         run: |
+          trap 'docker rm -f test-api >/dev/null 2>&1 || true' EXIT
           docker run -d --name test-api \
             -e ASPNETCORE_ENVIRONMENT=Development \
             -e Jwt__Secret=test-secret-key-min-32-chars-ok \
             -e Jwt__Issuer=MediScanAI \
             -e Jwt__Audience=MediScanAIUsers \
-            -e ConnectionStrings__DefaultConnection="Host=localhost;Database=test" \
+            -e ConnectionStrings__DefaultConnection="Data Source=/app/.auth/ci.db" \
             mediscan-api:${{ github.sha }}
-          sleep 5
+          for attempt in $(seq 1 30); do
+            if docker exec test-api curl --fail --silent http://localhost:8080/api/v1/health; then
+              exit 0
+            fi
+            sleep 2
+          done
           docker logs test-api
-          docker rm -f test-api
+          exit 1

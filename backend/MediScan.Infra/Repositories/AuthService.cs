@@ -83,44 +83,43 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponseDto> RefreshTokenAsync(string refreshToken)
     {
-        var token = await _db.RefreshTokens
+        var hash = TokenHash(refreshToken);
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        var token = await _db.RefreshTokens.AsNoTracking()
             .Include(r => r.User)
-            .FirstOrDefaultAsync(r => r.Token == refreshToken)
+            .FirstOrDefaultAsync(r => r.Token == hash)
             ?? throw new UnauthorizedAccessException("Invalid refresh token.");
 
-        if (!token.IsActive)
+        if (!token.IsActive || string.IsNullOrEmpty(token.SecurityStamp))
             throw new UnauthorizedAccessException("Refresh token is expired or revoked.");
 
-        // Rotate token
-        var newRefreshToken = GenerateRefreshToken();
-        newRefreshToken.UserId = token.UserId;
-        if (token.User?.IsActive != true) throw new UnauthorizedAccessException("Account is inactive.");
-        token.RevokedAt = DateTime.UtcNow;
-        token.ReplacedByToken = newRefreshToken.Token;
-
-        _db.RefreshTokens.Add(newRefreshToken);
+        var active = await _db.Users.Where(u => u.Id == token.UserId && u.IsActive && u.SecurityStamp == token.SecurityStamp)
+            .ExecuteUpdateAsync(update => update.SetProperty(u => u.UpdatedAt, u => u.UpdatedAt));
+        if (active != 1) throw new UnauthorizedAccessException("Session invalidated. Sign in again.");
+        var user = await _db.Users.AsNoTracking().SingleAsync(u => u.Id == token.UserId);
+        var issued = GenerateRefreshToken(user); var now = DateTime.UtcNow;
+        var claimed = await _db.RefreshTokens.Where(t => t.Id == token.Id && t.RevokedAt == null && t.ExpiresAt > now && t.SecurityStamp == user.SecurityStamp)
+            .ExecuteUpdateAsync(update => update.SetProperty(t => t.RevokedAt, now).SetProperty(t => t.ReplacedByToken, issued.Entity.Token));
+        if (claimed != 1) throw new UnauthorizedAccessException("Refresh token was already used or revoked.");
+        _db.RefreshTokens.Add(issued.Entity);
         await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
-        var accessToken = GenerateJwtToken(token.User!);
+        var accessToken = GenerateJwtToken(user);
         return new AuthResponseDto
         {
             AccessToken = accessToken,
-            RefreshToken = newRefreshToken.Token,
+            RefreshToken = issued.Raw,
             ExpiresAt = DateTime.UtcNow.AddMinutes(GetJwtExpiryMinutes()),
-            User = MapToProfileDto(token.User!)
+            User = MapToProfileDto(user)
         };
     }
 
     public async Task RevokeTokenAsync(string refreshToken, string userId)
     {
-        var token = await _db.RefreshTokens
-            .FirstOrDefaultAsync(r => r.Token == refreshToken && r.UserId == userId);
-
-        if (token != null && token.IsActive)
-        {
-            token.RevokedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync();
-        }
+        var hash = TokenHash(refreshToken);
+        await _db.RefreshTokens.Where(r => r.Token == hash && r.UserId == userId && r.RevokedAt == null)
+            .ExecuteUpdateAsync(update => update.SetProperty(r => r.RevokedAt, DateTime.UtcNow));
     }
 
     public async Task<UserProfileDto> GetProfileAsync(string userId)
@@ -161,9 +160,14 @@ public class AuthService : IAuthService
 
     private async Task<AuthResponseDto> GenerateAuthResponseAsync(ApplicationUser user)
     {
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        var stamp = user.SecurityStamp;
+        var active = await _db.Users.Where(u => u.Id == user.Id && u.IsActive && u.SecurityStamp == stamp)
+            .ExecuteUpdateAsync(update => update.SetProperty(u => u.UpdatedAt, u => u.UpdatedAt));
+        if (active != 1 || string.IsNullOrEmpty(stamp)) throw new UnauthorizedAccessException("Session invalidated. Sign in again.");
+        user = await _db.Users.AsNoTracking().SingleAsync(u => u.Id == user.Id);
         var accessToken = GenerateJwtToken(user);
-        var refreshToken = GenerateRefreshToken();
-        refreshToken.UserId = user.Id;
+        var issued = GenerateRefreshToken(user);
 
         // Remove old refresh tokens for this user (keep last 5)
         var oldTokens = await _db.RefreshTokens
@@ -173,13 +177,14 @@ public class AuthService : IAuthService
             .ToListAsync();
         _db.RefreshTokens.RemoveRange(oldTokens);
 
-        _db.RefreshTokens.Add(refreshToken);
+        _db.RefreshTokens.Add(issued.Entity);
         await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return new AuthResponseDto
         {
             AccessToken = accessToken,
-            RefreshToken = refreshToken.Token,
+            RefreshToken = issued.Raw,
             ExpiresAt = DateTime.UtcNow.AddMinutes(GetJwtExpiryMinutes()),
             User = MapToProfileDto(user)
         };
@@ -213,15 +218,20 @@ public class AuthService : IAuthService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    private static RefreshToken GenerateRefreshToken()
+    private static (RefreshToken Entity, string Raw) GenerateRefreshToken(ApplicationUser user)
     {
-        var randomBytes = RandomNumberGenerator.GetBytes(64);
-        return new RefreshToken
+        var raw = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+        return (new RefreshToken
         {
-            Token = Convert.ToBase64String(randomBytes),
+            UserId = user.Id, SecurityStamp = user.SecurityStamp, Token = TokenHash(raw),
             ExpiresAt = DateTime.UtcNow.AddDays(7),
             CreatedAt = DateTime.UtcNow
-        };
+        }, raw);
+    }
+    private static string TokenHash(string token)
+    {
+        if (string.IsNullOrEmpty(token) || token.Length > 256) throw new UnauthorizedAccessException("Invalid refresh token.");
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
     }
 
     private int GetJwtExpiryMinutes()

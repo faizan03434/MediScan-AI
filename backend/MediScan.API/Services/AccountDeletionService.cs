@@ -7,6 +7,7 @@ using MediScan.Infra.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using MediScan.Operations.Privacy;
 
 namespace MediScan.API.Services;
 
@@ -21,7 +22,7 @@ public sealed record DeletionReceipt(string Receipt, string Status, DateTime Req
 public sealed record DeletionStatus(string Status, DateTime RequestedAt, DateTime? CompletedAt);
 
 public sealed class AccountDeletionService(AppDbContext db, UserManager<ApplicationUser> users,
-    IEmailOtpStore codes, IVerificationEmailSender email, TimeProvider clock)
+    IEmailOtpStore codes, IVerificationEmailSender email, TimeProvider clock, IDeletionLedger ledger)
 {
     public async Task<OtpChallenge> SendCodeAsync(string userId)
     {
@@ -52,11 +53,14 @@ public sealed class AccountDeletionService(AppDbContext db, UserManager<Applicat
         else if (string.IsNullOrEmpty(user.Email) || string.IsNullOrEmpty(request.ChallengeId) || string.IsNullOrEmpty(request.Code)
             || (codes.Consume(request.ChallengeId, user.Email, "account_deletion", request.Code) as string) != user.Id)
             throw new ArgumentException("Verify your current password or a fresh email code.");
-        if (user.Role == "Admin" && await db.Users.CountAsync(u => u.Role == "Admin" && u.IsActive) < 2)
-            throw new ArgumentException("The last administrator requires an operator-managed account transfer before deletion.");
+        var verifiedStamp = user.SecurityStamp;
         var now = clock.GetUtcNow().UtcDateTime;
         var receipt = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
-        await using var transaction = await db.Database.BeginTransactionAsync();
+        await using var transaction = await AccountMutationLock.AcquireAsync(db);
+        await db.Entry(user).ReloadAsync();
+        if (!user.IsActive || user.SecurityStamp != verifiedStamp) throw new UnauthorizedAccessException("Account changed; verify again.");
+        if (user.Role == "Admin" && await db.Users.CountAsync(u => u.Role == "Admin" && u.IsActive) < 2)
+            throw new ArgumentException("The last administrator requires an operator-managed account transfer before deletion.");
         user.IsActive = false; user.UpdatedAt = now;
         var updated = await users.UpdateSecurityStampAsync(user);
         if (!updated.Succeeded) throw new InvalidOperationException("Account could not be disabled.");
@@ -67,6 +71,7 @@ public sealed class AccountDeletionService(AppDbContext db, UserManager<Applicat
             RequestedAt = now, NextAttemptAt = now.AddMinutes(2) });
         db.AuditLogs.Add(new AuditLog { UserId = userId, Action = "Account.DeletionRequested", EntityType = "User" });
         await db.SaveChangesAsync();
+        ledger.Record(userId, now);
         await transaction.CommitAsync();
         return new(receipt, "pending", now);
     }
@@ -82,10 +87,33 @@ public sealed class AccountDeletionService(AppDbContext db, UserManager<Applicat
 }
 
 public sealed class AccountDeletionProcessor(AppDbContext db, IStorageService storage, IEmailOtpStore codes,
-    TimeProvider clock, ILogger<AccountDeletionProcessor> logger)
+    TimeProvider clock, ILogger<AccountDeletionProcessor> logger, IDeletionLedger ledger)
 {
+    public async Task RecoverLedgerIntentsAsync(CancellationToken ct)
+    {
+        var erased = ledger.Snapshot().SubjectHashes.ToHashSet(StringComparer.Ordinal);
+        if (erased.Count == 0) return;
+        var users = await db.Users.AsNoTracking().Select(u => u.Id).ToListAsync(ct);
+        var queued = (await db.AccountDeletionJobs.Where(j => j.UserId != null).Select(j => j.UserId).ToListAsync(ct)).ToHashSet();
+        foreach (var id in users.Where(id => erased.Contains(DeletionLedger.SubjectHash(id)) && !queued.Contains(id)))
+        {
+            var now = clock.GetUtcNow().UtcDateTime;
+            var stamp = Guid.NewGuid().ToString("N");
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            await db.Users.Where(u => u.Id == id).ExecuteUpdateAsync(update => update.SetProperty(u => u.IsActive, false)
+                .SetProperty(u => u.SecurityStamp, stamp).SetProperty(u => u.UpdatedAt, now), ct);
+            await db.RefreshTokens.Where(t => t.UserId == id).ExecuteDeleteAsync(ct);
+            await db.PatientConsents.Where(c => c.PatientUserId == id || c.DoctorUserId == id)
+                .ExecuteUpdateAsync(update => update.SetProperty(c => c.Status, ConsentStatus.Revoked).SetProperty(c => c.RevokedAt, now), ct);
+            db.AccountDeletionJobs.Add(new AccountDeletionJob { UserId = id, RequestedAt = now, NextAttemptAt = now,
+                ReceiptHash = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)) });
+            await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
+        }
+    }
+
     public async Task<int> RunAsync(CancellationToken ct)
     {
+        await RecoverLedgerIntentsAsync(ct);
         var now = clock.GetUtcNow().UtcDateTime; var completed = 0;
         var ids = await db.AccountDeletionJobs.AsNoTracking().Where(j => j.CompletedAt == null && j.NextAttemptAt <= now
             && (j.LeaseUntil == null || j.LeaseUntil <= now)).OrderBy(j => j.NextAttemptAt).Take(10).Select(j => j.Id).ToListAsync(ct);

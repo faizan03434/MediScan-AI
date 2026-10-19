@@ -15,11 +15,18 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MediScan.Operations.Privacy;
 
 namespace MediScan.Tests;
 
 public partial class AccountAccessTests
 {
+    private sealed class TestLedger : IDeletionLedger
+    {
+        private readonly HashSet<string> hashes = [];
+        public void Record(string userId, DateTime requestedAt) => hashes.Add(DeletionLedger.SubjectHash(userId));
+        public LedgerSnapshot Snapshot() => new("fixture", hashes.ToArray());
+    }
     private sealed class TestClock : TimeProvider
     {
         public DateTimeOffset Now = DateTimeOffset.UtcNow;
@@ -48,6 +55,7 @@ public partial class AccountAccessTests
         public readonly CapturedMail Mail = new();
         public readonly Google Google = new();
         public readonly TestClock Clock = new();
+        public readonly TestLedger Ledger = new();
         public IEmailOtpStore Codes => provider.GetRequiredService<IEmailOtpStore>();
         public AccountAccessService Access => provider.GetRequiredService<AccountAccessService>();
         public IAuthService Auth => provider.GetRequiredService<IAuthService>();

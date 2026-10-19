@@ -129,6 +129,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
         {
             e.HasKey(r => r.Id);
             e.Property(r => r.Token).HasMaxLength(500).IsRequired();
+            e.Property(r => r.SecurityStamp).HasMaxLength(128);
             e.HasOne(r => r.User)
              .WithMany()
              .HasForeignKey(r => r.UserId)

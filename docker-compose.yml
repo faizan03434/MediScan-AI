@@ -59,6 +59,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT:    Development
       ASPNETCORE_URLS:           http://+:8080
+      Database__Provider:        postgresql
       ConnectionStrings__DefaultConnection: >
         Host=postgres;Port=5432;Database=mediscan_db;
         Username=mediscan_user;Password=mediscan_pass
@@ -74,6 +75,7 @@ services:
       Authentication__DataProtection__KeyDirectory: /app/.auth/keys
     volumes:
       - api_auth:/app/.auth
+      - api_privacy:/app/.privacy
       - api_uploads:/app/wwwroot/uploads
     depends_on:
       postgres:
@@ -134,6 +136,8 @@ volumes:
   api_auth:
     driver: local
   api_uploads:
+    driver: local
+  api_privacy:
     driver: local
 
 # ── Networks ─────────────────────────────────────────────────

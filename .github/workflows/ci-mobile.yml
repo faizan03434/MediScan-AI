@@ -43,6 +43,10 @@ jobs:
         working-directory: apps/mobile
         run: npm run test:capture
 
+      - name: Session concurrency checks
+        working-directory: apps/mobile
+        run: npm run test:session
+
       - name: Check for TODO / FIXME markers
         working-directory: apps/mobile
         run: |

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { ScanResult, ScanType } from '../types';
 import scanService from '../services/scanService';
+import { onSessionCleared, sessionVersion } from '../services/sessionEvents';
 
 interface ScanState {
   recentScans: ScanResult[];
@@ -23,9 +24,11 @@ const useScanStore = create<ScanState & ScanActions>((set) => ({
   error: null,
 
   submitScan: async (scanType, imageUri) => {
+    const revision = sessionVersion();
     set({ isScanning: true, error: null });
     try {
       const result = await scanService.createScan(scanType, imageUri);
+      if (revision !== sessionVersion()) throw new Error('Session changed. Open the scan again after signing in.');
       set((state) => ({
         recentScans: [result, ...state.recentScans.slice(0, 9)],
         currentScan: result,
@@ -34,7 +37,7 @@ const useScanStore = create<ScanState & ScanActions>((set) => ({
       return result;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Scan failed.';
-      set({ isScanning: false, error: message });
+      if (revision === sessionVersion()) set({ isScanning: false, error: message });
       throw err;
     }
   },
@@ -42,9 +45,10 @@ const useScanStore = create<ScanState & ScanActions>((set) => ({
   setCurrentScan: (scan) => set({ currentScan: scan }),
 
   loadRecentScans: async () => {
+    const revision = sessionVersion();
     try {
       const scans = await scanService.getRecentScans(5);
-      set({ recentScans: scans });
+      if (revision === sessionVersion()) set({ recentScans: scans });
     } catch {
       // Fail silently — not critical
     }
@@ -52,5 +56,7 @@ const useScanStore = create<ScanState & ScanActions>((set) => ({
 
   clearError: () => set({ error: null }),
 }));
+
+onSessionCleared(() => useScanStore.setState({ recentScans: [], currentScan: null, isScanning: false, error: null }));
 
 export default useScanStore;

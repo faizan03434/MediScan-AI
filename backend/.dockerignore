@@ -4,6 +4,7 @@
 **/.env.*
 **/appsettings.Local.json
 **/.auth
+**/.privacy
 **/*.db
 **/*.db-*
 **/wwwroot/uploads

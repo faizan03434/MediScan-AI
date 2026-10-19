@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { User, AuthState } from '../types';
 import authService, { LoginPayload, AuthResponse } from '../services/authService';
 import { clearTokens, getAccessToken, getRefreshToken } from '../services/api';
+import { onSessionCleared, sessionVersion } from '../services/sessionEvents';
 
 interface AuthActions {
   login: (payload: LoginPayload) => Promise<void>;
@@ -12,7 +13,7 @@ interface AuthActions {
   setLoading: (loading: boolean) => void;
 }
 
-const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
+const useAuthStore = create<AuthState & AuthActions>((set) => ({
   // ── State ──────────────────────────────────────────────────
   user: null,
   accessToken: null,
@@ -22,9 +23,11 @@ const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
   // ── Actions ────────────────────────────────────────────────
   login: async (payload) => {
+    const revision = sessionVersion();
     set({ isLoading: true });
     try {
     const response = await authService.login(payload);
+    if (sessionVersion() !== revision + 1) throw new Error('Session changed. Sign in again.');
     set({
       user: response.user,
       accessToken: response.accessToken,
@@ -46,39 +49,36 @@ const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   },
 
   logout: async () => {
-    const { refreshToken } = get();
     set({ isLoading: true });
+    const refreshToken = await getRefreshToken();
     if (refreshToken) {
       await authService.logout(refreshToken).catch(() => {});
-    }
-    await clearTokens();
-    set({
-      user: null,
-      accessToken: null,
-      refreshToken: null,
-      isAuthenticated: false,
-      isLoading: false,
-    });
+    } else { await clearTokens(); }
   },
 
   loadUser: async () => {
+    const revision = sessionVersion();
     set({ isLoading: true });
     try {
       const token = await getAccessToken();
       if (!token) {
-        set({ isAuthenticated: false, isLoading: false });
+        if (revision === sessionVersion()) await clearTokens();
         return;
       }
       const user = await authService.getProfile();
-      set({ user, accessToken: await getAccessToken(), refreshToken: await getRefreshToken(), isAuthenticated: true, isLoading: false });
+      const accessToken = await getAccessToken(); const refreshToken = await getRefreshToken();
+      if (revision === sessionVersion()) set({ user, accessToken, refreshToken, isAuthenticated: true, isLoading: false });
     } catch {
-      await clearTokens();
-      set({ user: null, isAuthenticated: false, isLoading: false });
+      if (revision === sessionVersion()) await clearTokens();
     }
   },
 
   updateUser: (user) => set({ user }),
   setLoading: (isLoading) => set({ isLoading }),
+}));
+
+onSessionCleared(() => useAuthStore.setState({
+  user: null, accessToken: null, refreshToken: null, isAuthenticated: false, isLoading: false,
 }));
 
 export default useAuthStore;

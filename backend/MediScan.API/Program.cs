@@ -17,6 +17,8 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
 using System.Security.Cryptography.X509Certificates;
+using MediScan.Operations;
+using MediScan.Operations.Privacy;
 
 // ─────────────────────────────────────────────
 // Bootstrap Serilog early
@@ -27,11 +29,15 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
-    var builder = WebApplication.CreateBuilder(args);
+    var initializeDatabase = args.Contains("--initialize-database");
+    var builder = WebApplication.CreateBuilder(args.Where(a => a != "--initialize-database").ToArray());
     // Local secrets are deliberately excluded from version control. Environment overrides win.
     builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
         .AddInMemoryCollection(EnvFileConfiguration.Read(Path.Combine(builder.Environment.ContentRootPath, ".env")))
         .AddEnvironmentVariables();
+    if (!builder.Environment.IsDevelopment()) ProductionConfiguration.Validate(builder.Configuration);
+    using var runtimeLease = initializeDatabase ? RuntimeLease.Maintenance(builder.Environment.ContentRootPath)
+        : RuntimeLease.Shared(builder.Environment.ContentRootPath);
 
     // ─── Serilog ───────────────────────────────
     builder.Host.UseSerilog((ctx, lc) => lc
@@ -41,24 +47,9 @@ try
     // ─── Database ──────────────────────────────
     // Auto-select: SQLite for dev (no PostgreSQL password needed), PostgreSQL for prod
     var connStr = builder.Configuration.GetConnectionString("DefaultConnection") ?? "";
-    var useSqlite = connStr.StartsWith("Data Source=") || connStr.Contains(".db") ||
-                    builder.Configuration["Database:Provider"] == "sqlite";
-
     builder.Services.AddDbContext<AppDbContext>(options =>
     {
-        if (useSqlite)
-        {
-            var sqlitePath = connStr.Replace("Data Source=", "").Replace(";", "").Trim();
-            if (string.IsNullOrEmpty(sqlitePath) || !connStr.Contains("="))
-                sqlitePath = Path.Combine(builder.Environment.ContentRootPath, "mediscan_dev.db");
-            options.UseSqlite($"Data Source={sqlitePath}");
-            Log.Information("Database: SQLite at {Path}", sqlitePath);
-        }
-        else
-        {
-            options.UseNpgsql(connStr);
-            Log.Information("Database: PostgreSQL");
-        }
+        DatabaseOptions.Configure(options, connStr, builder.Configuration["Database:Provider"], builder.Environment.ContentRootPath);
     });
 
     // ─── Identity ──────────────────────────────
@@ -135,13 +126,17 @@ try
     else if (OperatingSystem.IsWindows()) protection.ProtectKeysWithDpapi();
     else if (!builder.Environment.IsDevelopment())
         throw new InvalidOperationException("Configure a Data Protection certificate before running outside development on this platform.");
-    builder.Services.AddSingleton<IEmailOtpStore>(sp => new PersistentEmailOtpStore(
-        builder.Configuration["Authentication:Otp:DatabasePath"] ?? Path.Combine(builder.Environment.ContentRootPath, ".auth", "verification.db"),
-        sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IDataProtectionProvider>()));
+    builder.Services.AddSingleton<IEmailOtpStore>(sp => DatabaseOptions.IsSqlite(connStr, builder.Configuration["Database:Provider"])
+        ? new PersistentEmailOtpStore(builder.Configuration["Authentication:Otp:DatabasePath"] ?? Path.Combine(builder.Environment.ContentRootPath, ".auth", "verification.db"),
+            sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IDataProtectionProvider>())
+        : new PostgresEmailOtpStore(connStr, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IDataProtectionProvider>()));
     builder.Services.AddScoped<IVerificationEmailSender, SmtpEmailSender>();
     builder.Services.AddSingleton<IGoogleIdentityVerifier, GoogleIdentityVerifier>();
     builder.Services.AddScoped<AccountAccessService>();
     builder.Services.AddScoped<AccountDeletionService>();
+    builder.Services.AddSingleton<IDeletionLedger>(sp => new DeletionLedger(
+        builder.Configuration["Privacy:DeletionLedgerPath"] ?? Path.Combine(builder.Environment.ContentRootPath, ".privacy", "deletions.db"),
+        sp.GetRequiredService<IDataProtectionProvider>()));
     builder.Services.AddScoped<AccountDeletionProcessor>();
     builder.Services.AddHostedService<AccountDeletionWorker>();
     builder.Services.AddScoped<DeletedRecordPurger>();
@@ -268,6 +263,23 @@ try
     var app = builder.Build();
     // ─────────────────────────────────────────────
 
+    if (initializeDatabase)
+    {
+        using var scope = app.Services.CreateScope();
+        var database = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await database.Database.MigrateAsync();
+        var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        foreach (var role in new[] { "User", "Doctor", "Admin" })
+            if (!await roles.RoleExistsAsync(role))
+            {
+                var result = await roles.CreateAsync(new IdentityRole(role));
+                if (!result.Succeeded) throw new InvalidOperationException("Role provisioning failed.");
+            }
+        _ = scope.ServiceProvider.GetRequiredService<IDeletionLedger>().Snapshot();
+        Log.Information("Database initialized. No demo accounts were created.");
+        return;
+    }
+
     // Run migrations + seed on startup (dev only)
     if (app.Environment.IsDevelopment())
     {
@@ -279,6 +291,9 @@ try
 
         await DatabaseSeeder.SeedAsync(db, userManager, roleManager, seedLogger);
     }
+
+    using (var privacyScope = app.Services.CreateScope())
+        await privacyScope.ServiceProvider.GetRequiredService<AccountDeletionProcessor>().RecoverLedgerIntentsAsync(CancellationToken.None);
 
     app.UseMiddleware<ExceptionMiddleware>();
     app.UseSerilogRequestLogging();
