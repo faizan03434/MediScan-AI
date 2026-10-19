@@ -1,6 +1,7 @@
 import api from './api';
 import { appendImage } from '../utils/upload';
 import type { ApiResponse, ScanType } from '../types';
+import { captureGuideSchema } from '../utils/captureGuideSchema';
 export interface CaptureGuide {
   capture_eligible: boolean; guidance: string; detector: string; target_verified: boolean;
   box: { x: number; y: number; width: number; height: number } | null;
@@ -12,5 +13,9 @@ export async function getCaptureGuide(type: ScanType, uri: string, signal: Abort
     headers: { 'Content-Type': 'multipart/form-data' }, signal, timeout: 12000,
   });
   if (!data.success || !data.data) throw new Error(data.message);
-  return data.data;
+  const checked = captureGuideSchema.safeParse(data.data);
+  if (!checked.success || type === 'Posture' && checked.data.capture_eligible && checked.data.detector !== 'yolov8n-person') {
+    throw new Error('Live framing response could not be verified. Use manual capture.');
+  }
+  return checked.data;
 }

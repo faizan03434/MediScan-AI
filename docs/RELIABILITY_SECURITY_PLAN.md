@@ -1,5 +1,7 @@
 # Reliability and security work — 10 October 2026
 
+**19 October follow-up:** New scan/prescription uploads are now normalized before persistence, with orientation applied and original image metadata removed. Normalizer failure prevents storage; local/Azure writes use owner-authorized media URLs. Live capture validates evidence before automatic capture, and guidance/normalization share a bounded per-process work limit. 41 backend and 86 AI tests pass, plus mobile checks and a running synthetic six-module upload/privacy check. Existing retained photos are not migrated; cloud/physical-device/clinical validation, persistent OTP budgets and production operations remain pending. See the [current completion audit](COMPLETION_AUDIT_2026_10_19.md); statements below describe the earlier implementation.
+
 ## Implemented in this change
 
 AI image utilities validate the actual image format, reject animated images, and check a 20-million-pixel / 10,000-pixel-edge budget before pixel decoding. OpenCV callers use the same bounded decoder. EXIF orientation is applied and metadata is removed from the returned decoded image; this does **not** prove that original files retained by the backend have had location metadata removed. Storage sanitization and deletion/retention still need a separate review.

@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from config import get_settings
-from routers import screening_preview, document_ocr, model_status, capture_guidance
+from routers import screening_preview, document_ocr, model_status, capture_guidance, image_storage
 
 logger = structlog.get_logger()
 
@@ -47,6 +47,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(capture_guidance.router)
+app.include_router(image_storage.router)
 
 # ── CORS ────────────────────────────────────────────────────────
 # Only the .NET API should call this; restrict in production

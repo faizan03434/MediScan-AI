@@ -37,6 +37,16 @@ public class ExceptionMiddleware
         {
             await WriteError(context, HttpStatusCode.ServiceUnavailable, ex.Message);
         }
+        catch (HttpRequestException)
+        {
+            await WriteError(context, HttpStatusCode.ServiceUnavailable,
+                "A connected service is temporarily unavailable. Please try again later.");
+        }
+        catch (OperationCanceledException) when (!context.RequestAborted.IsCancellationRequested)
+        {
+            await WriteError(context, HttpStatusCode.ServiceUnavailable,
+                "Processing timed out. Please try again later.");
+        }
         catch (Microsoft.IdentityModel.Tokens.SecurityTokenException)
         {
             await WriteError(context, HttpStatusCode.Unauthorized, "Google identity could not be verified. Please sign in again.");

@@ -44,6 +44,21 @@ public class AzureBlobStorageService : IStorageService
         var container = _blobServiceClient.GetBlobContainerClient(_containerName);
         var blobClient = container.GetBlobClient(blobName);
         var response = await blobClient.DownloadAsync();
-        return response.Value.Content;
+        await using var remote = response.Value.Content;
+        var result = new MemoryStream();
+        var buffer = new byte[81920];
+        try
+        {
+            int count;
+            while ((count = await remote.ReadAsync(buffer)) != 0)
+            {
+                if (result.Length + count > 16 * 1024 * 1024)
+                    throw new IOException("Stored photo exceeds media size limit.");
+                await result.WriteAsync(buffer.AsMemory(0, count));
+            }
+            result.Position = 0;
+            return result;
+        }
+        catch { result.Dispose(); throw; }
     }
 }

@@ -122,6 +122,7 @@ try
     builder.Services.AddSingleton<IGoogleIdentityVerifier, GoogleIdentityVerifier>();
     builder.Services.AddScoped<AccountAccessService>();
     builder.Services.AddHttpClient("capture-guide", client => client.Timeout = TimeSpan.FromSeconds(10));
+    builder.Services.AddHttpClient("image-storage", client => client.Timeout = TimeSpan.FromSeconds(30));
 
     // ─── CORS ──────────────────────────────────
     builder.Services.AddCors(options =>
@@ -152,14 +153,15 @@ try
         var connStr = config["Azure:StorageConnectionString"] ?? "";
 
         // Auto-select: Azure Blob if configured, local disk otherwise
-        if (!string.IsNullOrWhiteSpace(connStr))
-            return new AzureBlobStorageService(config);
-        else
-            return new LocalStorageService(
+        IStorageService rawStorage = !string.IsNullOrWhiteSpace(connStr)
+            ? new AzureBlobStorageService(config)
+            : new LocalStorageService(
                 config,
                 sp.GetRequiredService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>(),
                 sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LocalStorageService>>()
             );
+        return new SanitizedImageStorageService(rawStorage,
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("image-storage"), config);
     });
     builder.Services.AddScoped<IScanService, ScanService>();
     builder.Services.AddScoped<IMedicationService, MedicationService>();

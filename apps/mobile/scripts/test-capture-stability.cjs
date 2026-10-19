@@ -6,9 +6,10 @@ const source = fs.readFileSync('src/utils/captureStability.ts', 'utf8');
 const output = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
 const sandbox = { exports: {} }; vm.runInNewContext(output, sandbox);
 const stable = sandbox.exports.stableCapture;
-const guide = { capture_eligible: true, detector: 'framing_guide', signal: Array(64).fill(128) };
+const guide = { capture_eligible: true, detector: 'framing_guide', signal: Array(64).fill(128), clinical_inference: false, target_verified: false, box: null, guidance: 'Hold steady' };
 assert.equal(stable(null, guide), false);
 assert.equal(stable(guide, guide), true);
+assert.equal(stable(guide, { ...guide, clinical_inference: true }), false);
 assert.equal(stable(guide, { ...guide, capture_eligible: false }), false);
 assert.equal(stable(guide, { ...guide, signal: Array(64).fill(200) }), false);
 assert.equal(stable(guide, { ...guide, signal: [NaN] }), false);
@@ -18,3 +19,14 @@ assert.equal(stable(person, { ...person, box: { ...person.box, x: .4 } }), false
 assert.equal(stable(person, { ...person, target_verified: false }), false);
 assert.equal(stable(person, { ...person, detector: 'unavailable' }), false);
 console.log('PASS: motion, invalid signals, eligibility and person framing prevent unsafe auto-capture');
+const schemaSource = fs.readFileSync('src/utils/captureGuideSchema.ts', 'utf8');
+const schemaOutput = ts.transpileModule(schemaSource, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+const schemaSandbox = { exports: {}, require }; vm.runInNewContext(schemaOutput, schemaSandbox);
+const schema = schemaSandbox.exports.captureGuideSchema;
+assert.equal(schema.safeParse(guide).success, true);
+for (const invalid of [{ ...guide, clinical_inference: true }, { ...guide, capture_eligible: 'true' },
+  { ...guide, signal: [128] }, { ...guide, detector: 'unavailable' },
+  { ...person, box: { x: .9, y: .1, width: .4, height: .8 } }, { ...person, target_verified: false }]) {
+  assert.equal(schema.safeParse(invalid).success, false);
+}
+console.log('PASS: malformed or contradictory server evidence cannot authorize capture');

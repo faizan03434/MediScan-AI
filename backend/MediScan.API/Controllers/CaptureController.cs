@@ -35,6 +35,8 @@ public sealed class CaptureController(IHttpClientFactory clients, IConfiguration
             var file = new StreamContent(stream); file.Headers.ContentType = new MediaTypeHeaderValue(image.ContentType);
             multipart.Add(file, "image", "preview.jpg"); request.Content = multipart;
             using var response = await client.SendAsync(request, cancellationToken);
+            if ((int)response.StatusCode == 429)
+                return StatusCode(429, ApiResponse<object>.Fail("Live framing is busy. Wait a moment or use manual capture."));
             if ((int)response.StatusCode is 400 or 413 or 415 or 422)
                 return BadRequest(ApiResponse<object>.Fail("Preview could not be read. Use a smaller, clear photo."));
             response.EnsureSuccessStatusCode();
