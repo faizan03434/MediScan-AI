@@ -1,6 +1,6 @@
 # MediScan completion audit — 19 October 2026
 
-**Newest checkpoint:** [operations and session evidence](OPERATIONS_AND_SESSION_CHECKPOINT.md) updates the same rubric to **57/100 complete, 43/100 remaining**. The 65 milestone has not been reached. 95 backend tests and 87 AI checks pass; clinical acceptance is still incomplete. The checkpoints below are historical.
+**Newest checkpoint:** [26 October reassessment](COMPLETION_AUDIT_2026_10_26.md) updates the same rubric to **60/100 complete, 40/100 remaining** after source/reference training and operator/TLS work. The 65 milestone has not been reached. The checkpoints below are historical.
 
 **Current checkpoint:** [account deletion/readiness evidence](ACCOUNT_DELETION_AND_READINESS.md) and [delivery ledger](DELIVERY_STRATEGY.md) update the engineering estimate to **51/100 complete, 49/100 remaining**, with 66 backend/87 AI tests passing. Earlier estimates below are historical; clinical validation is still incomplete.
 

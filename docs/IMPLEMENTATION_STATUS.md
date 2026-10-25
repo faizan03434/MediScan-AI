@@ -1,5 +1,7 @@
 # Implementation status — 10 October 2026
 
+**Newest reassessment (26 October): [60/100 complete, 40/100 remaining](COMPLETION_AUDIT_2026_10_26.md).** This is an engineering estimate, not medical accuracy. The checkpoints below are historical; the 65 milestone and independent medical acceptance remain unfinished.
+
 **Current checkpoint:** [account deletion/readiness](ACCOUNT_DELETION_AND_READINESS.md) — password/email-code confirmation, durable account cleanup, private status receipt, media inventory and dependency probes are implemented. 66 backend/87 AI tests and mobile checks pass; the running synthetic-account worker removed its fixture and physical photo. Estimate: 51/100 complete, 49/100 remaining. Backups, cloud/device acceptance and clinical validation remain open.
 
 **Latest checkpoint:** [delivery ledger](DELIVERY_STRATEGY.md) — 49/100 complete and 51/100 remaining by the same engineering rubric; 54 backend tests pass. Persistent encrypted OTP, account exports, all-device logout, opt-in deleted-record purge, Docker privacy/persistence and stale Expo host recovery are implemented. Live SMTP still fails; physical-device, Google and clinical acceptance remain open.
