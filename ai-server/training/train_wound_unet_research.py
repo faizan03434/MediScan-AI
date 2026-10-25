@@ -46,9 +46,32 @@ def binary_scores(prediction, truth):
             (intersection + 1e-6) / (total - intersection + 1e-6))
 
 
-def run(epochs, patience, output):
+def segmentation_loss(logits, truth, per_image=False):
+    probabilities = logits.sigmoid()
+    dims = (1, 2, 3) if per_image else (0, 1, 2, 3)
+    soft_dice = (2 * (probabilities * truth).sum(dims) + 1) / (
+        probabilities.sum(dims) + truth.sum(dims) + 1)
+    return nn.functional.binary_cross_entropy_with_logits(logits, truth) + 1 - soft_dice.mean()
+
+
+def load_initial(model, initial, manifest_hash):
+    card = json.loads((initial / 'model_card.json').read_text(encoding='utf-8'))
+    weights = initial / 'weights.pt'
+    digest = hashlib.sha256(weights.read_bytes()).hexdigest()
+    if card.get('architecture') != 'WoundUNet' or card.get('manifest_sha256') != manifest_hash:
+        raise ValueError('Warm start must use the same audited manifest and architecture')
+    if digest != card.get('checkpoint_sha256') or card.get('clinical_approved') is not False:
+        raise ValueError('Warm-start integrity/research-status check failed')
+    model.load_state_dict(torch.load(weights, weights_only=True, map_location='cpu'))
+    return digest
+
+
+def run(epochs, patience, output, size=96, initial=None, learning_rate=.0005,
+        per_image_dice=False, spatial_augmentation=False):
     if epochs < 1 or patience < 1 or output.exists():
         raise ValueError('Positive epochs/patience and immutable new output required')
+    if size < 32 or size > 512 or size % 4 or not 0 < learning_rate <= .01:
+        raise ValueError('Use a 32-512 input size divisible by four and a bounded learning rate')
     torch.set_num_threads(4)
     torch.manual_seed(42)
     random.seed(42)
@@ -56,6 +79,7 @@ def run(epochs, patience, output):
     directory = ROOT / 'datasets/kaggle/co2wounds_v1'
     manifest_path = directory / 'cleaned/manifest.json'
     manifest = json.loads(manifest_path.read_text())
+    manifest_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
     if manifest.get('clinical_ready') is not False:
         raise ValueError('Explicit research-only manifest required')
     cache, pixels = {}, {}
@@ -69,9 +93,9 @@ def run(epochs, patience, output):
                 values = np.asarray(mask)
                 if image.size != mask.size or values.ndim != 2 or not set(np.unique(values)).issubset({0, 1}):
                     raise ValueError('Mask dimensions or class values invalid')
-                image_tensor = torch.from_numpy(np.asarray(image.convert('RGB').resize((96, 96)),
+                image_tensor = torch.from_numpy(np.asarray(image.convert('RGB').resize((size, size)),
                     dtype=np.float32).copy().transpose(2, 0, 1)) / 255
-                mask_tensor = torch.from_numpy(np.asarray(mask.resize((96, 96), Image.Resampling.NEAREST),
+                mask_tensor = torch.from_numpy(np.asarray(mask.resize((size, size), Image.Resampling.NEAREST),
                     dtype=np.float32).copy()).unsqueeze(0)
                 if not mask_tensor.any():
                     raise ValueError('Wound vanished at training resolution; review resolution before training')
@@ -84,10 +108,15 @@ def run(epochs, patience, output):
     if pixels['train'] & pixels['val']:
         raise ValueError('Exact pixel split leakage')
     model = WoundUNet()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=.0005, weight_decay=.001)
-    loss_fn = nn.BCEWithLogitsLoss()
+    initial_hash = load_initial(model, initial, manifest_hash) if initial else None
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=.001)
     loader = DataLoader(TensorDataset(*cache['train']), batch_size=16, shuffle=True)
     output.mkdir(parents=True)
+    experiment = {'status': 'running', 'epochs_requested': epochs, 'input_size': [size, size],
+        'seed': 42, 'manifest_sha256': manifest_hash, 'initial_checkpoint_sha256': initial_hash,
+        'learning_rate': learning_rate, 'per_image_dice': per_image_dice,
+        'spatial_augmentation': spatial_augmentation, 'clinical_approved': False, 'test_evaluated': False}
+    (output / 'experiment.json').write_text(json.dumps(experiment, indent=2), encoding='utf-8')
     best, stale, history = -1, 0, []
     for epoch in range(epochs):
         model.train()
@@ -95,11 +124,14 @@ def run(epochs, patience, output):
             flip = torch.rand(len(images)) < .5
             images, truth = images.clone(), truth.clone()
             images[flip], truth[flip] = images[flip].flip(-1), truth[flip].flip(-1)
+            if spatial_augmentation:
+                turns = random.randrange(4)
+                images, truth = images.rot90(turns, (-2, -1)), truth.rot90(turns, (-2, -1))
             optimizer.zero_grad()
             logits = model(images)
-            probabilities = logits.sigmoid()
-            soft_dice = (2 * (probabilities * truth).sum() + 1) / (probabilities.sum() + truth.sum() + 1)
-            loss = loss_fn(logits, truth) + 1 - soft_dice
+            loss = segmentation_loss(logits, truth, per_image_dice)
+            if not torch.isfinite(loss):
+                raise ValueError('Nonfinite training loss; checkpoint not approved')
             loss.backward()
             optimizer.step()
         model.eval()
@@ -124,7 +156,7 @@ def run(epochs, patience, output):
     model.eval()
     with torch.no_grad():
         logits = model(cache['val'][0][:1])
-    assert logits.shape == (1, 1, 96, 96) and torch.isfinite(logits).all()
+    assert logits.shape == (1, 1, size, size) and torch.isfinite(logits).all()
     card = {'model': output.name, 'architecture': 'WoundUNet', 'seed': 42,
         'epochs_completed': len(history), 'best_epoch': best_epoch, 'early_stopping_patience': patience,
         'validation_dice': best, 'validation_iou': best_iou, 'test_evaluated': False,
@@ -133,15 +165,21 @@ def run(epochs, patience, output):
         'split_counts': {s: len(v[0]) for s, v in cache.items()},
         'checkpoint_sha256': hashlib.sha256((output / 'weights.pt').read_bytes()).hexdigest(),
         'manifest_sha256': hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
-        'threshold': .5, 'input_size': [96, 96], 'release_status': 'research_only_validation_selected',
-        'preprocessing': 'RGB resize 96x96 /255; nearest-neighbour binary mask resize; matched horizontal flips in training',
+        'threshold': .5, 'input_size': [size, size], 'release_status': 'research_only_validation_selected',
+        'initial_checkpoint_sha256': initial_hash, 'learning_rate': learning_rate,
+        'per_image_dice': per_image_dice, 'spatial_augmentation': spatial_augmentation,
+        'preprocessing': f'RGB resize {size}x{size} /255; nearest-neighbour binary masks; matched spatial training augmentation',
         'checkpoint_load_forward_check_passed': True, 'healing_stage_supported': False,
         'calibrated_cm_supported': False, 'limitations': ['Provider test masks unavailable.',
             'Same validation cohort used for earlier experiments and checkpoint selection; score is optimistic.',
             'Patient IDs unverified; source license restrictions unresolved.',
             'Low-resolution research model, no clinical or commercial approval.']}
     (output / 'model_card.json').write_text(json.dumps(card, indent=2), encoding='utf-8')
-    (ROOT.parent / 'docs/WOUND_UNET_RESULTS.json').write_text(json.dumps(card, indent=2), encoding='utf-8')
+    experiment['status'] = 'completed'
+    (output / 'experiment.json').write_text(json.dumps(experiment, indent=2), encoding='utf-8')
+    # Preserve the original published result when creating a new experiment.
+    if output.name == 'wound-unet-v1':
+        (ROOT.parent / 'docs/WOUND_UNET_RESULTS.json').write_text(json.dumps(card, indent=2), encoding='utf-8')
     print(json.dumps({'model': output.name, 'best_validation_dice': best, 'test_evaluated': False}), flush=True)
 
 
@@ -150,5 +188,11 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=60)
     parser.add_argument('--patience', type=int, default=12)
     parser.add_argument('--output', type=Path, default=ROOT / 'models/research/wound-unet-v1')
+    parser.add_argument('--size', type=int, default=96)
+    parser.add_argument('--initial', type=Path)
+    parser.add_argument('--learning-rate', type=float, default=.0005)
+    parser.add_argument('--per-image-dice', action='store_true')
+    parser.add_argument('--spatial-augmentation', action='store_true')
     args = parser.parse_args()
-    run(args.epochs, args.patience, args.output)
+    run(args.epochs, args.patience, args.output, args.size, args.initial, args.learning_rate,
+        args.per_image_dice, args.spatial_augmentation)

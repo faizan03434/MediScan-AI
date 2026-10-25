@@ -1,0 +1,415 @@
+{
+  "date": "2026-10-25",
+  "target": "90%+ independently validated task performance",
+  "completed_experiments": 9,
+  "experiments": [
+    {
+      "model": "anemia-features-20261025",
+      "architecture": "MobileNetV3ColorRegularizedFeatures",
+      "task": "anemia",
+      "classes": [
+        "Anemic",
+        "Non-anemic"
+      ],
+      "selected_features": "cnn_color",
+      "split_counts": {
+        "train": 243,
+        "val": 52,
+        "test": 53
+      },
+      "validation_balanced_accuracy": 0.6454545454545455,
+      "test_evaluated": false,
+      "checkpoint_sha256": "bba755275b7c371964d8f62f03c43885d4921991281ed03bc0beeef72b7a2f08",
+      "manifest_sha256": "4102fbf259c7d5e0f5f90b82d08649bae60f49f2b59024115229615545a39559",
+      "checkpoint_integrity_verified": true,
+      "clinical_approved": false,
+      "commercial_release_allowed": false
+    },
+    {
+      "model": "anemia-resnet18-20261025",
+      "architecture": "FrozenImageNetColorRegularizedFeatures",
+      "task": "anemia",
+      "classes": [
+        "Anemic",
+        "Non-anemic"
+      ],
+      "selected_features": "color",
+      "backbone": "resnet18",
+      "split_counts": {
+        "train": 243,
+        "val": 52,
+        "test": 53
+      },
+      "validation_balanced_accuracy": 0.55,
+      "test_evaluated": false,
+      "checkpoint_sha256": "1c98dd1d326c69f380e7853b82893ba111cb8d83f71c021bd55c95fcac67d331",
+      "manifest_sha256": "4102fbf259c7d5e0f5f90b82d08649bae60f49f2b59024115229615545a39559",
+      "checkpoint_integrity_verified": true,
+      "clinical_approved": false,
+      "commercial_release_allowed": false
+    },
+    {
+      "model": "eye-features-20261025",
+      "architecture": "MobileNetV3ColorRegularizedFeatures",
+      "task": "eye",
+      "classes": [
+        "healthy_eye",
+        "infected_eye"
+      ],
+      "selected_features": "cnn",
+      "split_counts": {
+        "train": 212,
+        "val": 45,
+        "test": 46
+      },
+      "validation_balanced_accuracy": 0.9782608695652174,
+      "test_evaluated": false,
+      "checkpoint_sha256": "b88a97dcebf30d366345b107aa3c96e33722ccc444f5bf180fbf1436a2293252",
+      "manifest_sha256": "ac8b96a50a8b85b4883cfb8c06908a44cec3ad662a6c37bcad439461533be7b7",
+      "checkpoint_integrity_verified": true,
+      "clinical_approved": false,
+      "commercial_release_allowed": false
+    },
+    {
+      "model": "retina-features-20261025",
+      "architecture": "MobileNetV3ColorRegularizedFeatures",
+      "task": "retina",
+      "classes": [
+        "cataract",
+        "diabetic_retinopathy",
+        "glaucoma",
+        "normal"
+      ],
+      "selected_features": "cnn_color",
+      "split_counts": {
+        "train": 2292,
+        "val": 491,
+        "test": 492
+      },
+      "validation_balanced_accuracy": 0.8618066843525731,
+      "test_evaluated": false,
+      "checkpoint_sha256": "968fa29d3312a146717b6098c54fd49d3ad00ae1cbf144bdb9754871f67cfa57",
+      "manifest_sha256": "ae0214847cb199c63d6d1e7d2d56c82e3141de2416df72d0a15aa99de0e3da23",
+      "checkpoint_integrity_verified": true,
+      "clinical_approved": false,
+      "commercial_release_allowed": false
+    },
+    {
+      "model": "scin-expanded-features-20261025",
+      "architecture": "FrozenImageNetColorRegularizedFeatures",
+      "task": "scin",
+      "classes": [
+        "Acne",
+        "Eczema",
+        "Tinea"
+      ],
+      "selected_features": "cnn",
+      "backbone": "mobilenet",
+      "split_counts": {
+        "train": 137,
+        "val": 8,
+        "test": 9
+      },
+      "validation_balanced_accuracy": 0.6666666666666666,
+      "test_evaluated": false,
+      "checkpoint_sha256": "73de267c4e96f82430c7a1a23691ee19156de5222dc9f725d79362f5ffee35ae",
+      "manifest_sha256": "5a120eedd519c285bfaf52cd142d508690539550a1f9300cadeb9586e3731e60",
+      "checkpoint_integrity_verified": true,
+      "clinical_approved": false,
+      "commercial_release_allowed": false
+    },
+    {
+      "model": "sitting-posture-normalized-20261025",
+      "architecture": "SittingPostureTwoHead",
+      "classes": [
+        "TLB",
+        "TLF",
+        "TLL",
+        "TLR",
+        "TUP"
+      ],
+      "split_counts": {
+        "train": 2094,
+        "val": 930
+      },
+      "subject_counts": {
+        "train": 7,
+        "val": 2,
+        "test": 4
+      },
+      "tasks": {
+        "upper_body": {
+          "classes": [
+            "TLB",
+            "TLF",
+            "TLL",
+            "TLR",
+            "TUP"
+          ],
+          "validation_balanced_accuracy": 0.9746842479477733,
+          "validation_confusion_matrix": [
+            [
+              23,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              361,
+              0,
+              0,
+              21
+            ],
+            [
+              0,
+              0,
+              60,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              60,
+              0
+            ],
+            [
+              28,
+              1,
+              0,
+              0,
+              376
+            ]
+          ]
+        },
+        "lower_body": {
+          "classes": [
+            "LAP",
+            "LCL",
+            "LCR",
+            "LCS",
+            "LLL",
+            "LLR",
+            "LWA"
+          ],
+          "validation_balanced_accuracy": 0.9966666666666667,
+          "validation_confusion_matrix": [
+            [
+              297,
+              0,
+              0,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              0,
+              120,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              120,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              120,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              60,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              60,
+              0
+            ],
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              148
+            ]
+          ]
+        }
+      },
+      "test_evaluated": false,
+      "checkpoint_sha256": "0680fe31f9418ca140650ac5abc19779e90112ade78888fa38d11e9fcf9d516f",
+      "manifest_sha256": "ab996ba00230e553dbac6983498697fee456a91d1b59f8bfad0c21ce8bb17add",
+      "pose_normalization": "hip-centered torso-length scaling",
+      "checkpoint_integrity_verified": true,
+      "clinical_approved": false,
+      "commercial_release_allowed": false
+    },
+    {
+      "model": "skin-features-20261025",
+      "architecture": "MobileNetV3ColorRegularizedFeatures",
+      "task": "skin",
+      "classes": [
+        "Atopic Dermatitis (AD)",
+        "Contact Dermatitis (CD)",
+        "Eczema (EC)",
+        "Scabies (SC)",
+        "Seborrheic Dermatitis (SD)",
+        "Tinea Corporis (TC)"
+      ],
+      "selected_features": "cnn_color",
+      "split_counts": {
+        "train": 1143,
+        "val": 263,
+        "test": 227
+      },
+      "validation_balanced_accuracy": 0.3707429039746113,
+      "test_evaluated": false,
+      "checkpoint_sha256": "329768a51d63d0f4c408be79c3f2050cba6ab79886d52913b5e3fcae5a503640",
+      "manifest_sha256": "c560a16a9494c588b2405b0b61dc33a92ca0b67af8a678e3ce0e3a74f3c54f88",
+      "checkpoint_integrity_verified": true,
+      "clinical_approved": false,
+      "commercial_release_allowed": false
+    },
+    {
+      "model": "skin-resnet18-20261025",
+      "architecture": "FrozenImageNetColorRegularizedFeatures",
+      "task": "skin",
+      "classes": [
+        "Atopic Dermatitis (AD)",
+        "Contact Dermatitis (CD)",
+        "Eczema (EC)",
+        "Scabies (SC)",
+        "Seborrheic Dermatitis (SD)",
+        "Tinea Corporis (TC)"
+      ],
+      "selected_features": "color",
+      "backbone": "resnet18",
+      "split_counts": {
+        "train": 1143,
+        "val": 263,
+        "test": 227
+      },
+      "validation_balanced_accuracy": 0.27955319510197557,
+      "test_evaluated": false,
+      "checkpoint_sha256": "03a7a0c1c135c4625886192a0d8abb7c781f4b4a75e689d1a523478069490fdd",
+      "manifest_sha256": "c560a16a9494c588b2405b0b61dc33a92ca0b67af8a678e3ce0e3a74f3c54f88",
+      "checkpoint_integrity_verified": true,
+      "clinical_approved": false,
+      "commercial_release_allowed": false
+    },
+    {
+      "model": "wound-unet-128-20261025",
+      "architecture": "WoundUNet",
+      "split_counts": {
+        "train": 439,
+        "val": 109
+      },
+      "validation_dice": 0.6980617678188084,
+      "validation_iou": 0.5771722970686328,
+      "test_evaluated": false,
+      "checkpoint_sha256": "f81a4a437cbafcc898fadb01c7ed00b89a4908d415728939999d2d464cba3ffb",
+      "manifest_sha256": "27dc7834e4cfb6b98310c5a44275048ba978ed7543b27a1ea838abcc49192e3d",
+      "checkpoint_integrity_verified": true,
+      "clinical_approved": false,
+      "commercial_release_allowed": false
+    }
+  ],
+  "scin_expansion": {
+    "source": "https://github.com/google-research-datasets/scin",
+    "parent_manifest_sha256": "52df21f91e219d5e19bf71c4969d2a75213847d913afa4aa53c3c61204651a3f",
+    "new_training_cases": 103,
+    "quarantined_new_images": 0,
+    "total_images": 154,
+    "class_counts": {
+      "Acne": 15,
+      "Eczema": 127,
+      "Tinea": 12
+    },
+    "split_counts": {
+      "train": 137,
+      "val": 8,
+      "test": 9
+    },
+    "old_assignments_preserved": true,
+    "clinical_approved": false,
+    "patient_identity_verified": false,
+    "commercial_release_allowed": false
+  },
+  "wound_native_validation_comparison": {
+    "evaluation": "same_original_resolution_validation_masks",
+    "validation_images": 109,
+    "manifest_sha256": "27dc7834e4cfb6b98310c5a44275048ba978ed7543b27a1ea838abcc49192e3d",
+    "test_evaluated": false,
+    "clinical_approved": false,
+    "models": {
+      "wound-unet-v1": {
+        "validation_dice": 0.6666399667571082,
+        "validation_iou": 0.5448454433301879
+      },
+      "wound-unet-128-20261025": {
+        "validation_dice": 0.6983010537441692,
+        "validation_iou": 0.577522264594955
+      }
+    },
+    "limitations": [
+      "Reused checkpoint-selection validation; no independent performance estimate.",
+      "Provider subject identities unverified; no clinical acceptance or calibrated measurement claim."
+    ]
+  },
+  "fuseg_acquisition": {
+    "source": "https://github.com/uwm-bigdata/wound-segmentation",
+    "commit": "42a272dfe0679f20675e826385925cb7562934b6",
+    "status": "download_failed_partial_retained",
+    "partial_bytes": 83507347,
+    "included_in_training": false
+  },
+  "new_test_images_evaluated": 0,
+  "clinical_inference_enabled": false,
+  "universal_90_percent_established": false,
+  "limitations": [
+    "All new classification scores are validation selection results, not external accuracy.",
+    "Same validation cohorts reused; new experiments do not reset their independence.",
+    "SCIN validation has only 8 cases; sitting validation has only 2 provider subjects.",
+    "Skin feature experiments did not beat the existing best checkpoint.",
+    "Tongue/scoliosis labels and permissions remain incomplete."
+  ],
+  "training_environment": {
+    "device": "CPU",
+    "cuda_available": false,
+    "versions": {
+      "torch": "2.14.1+cpu",
+      "torchvision": "0.29.1",
+      "numpy": "2.5.3",
+      "scikit-learn": "1.9.1",
+      "Pillow": "11.0.0",
+      "opencv-python-headless": "4.10.0.84"
+    }
+  }
+}

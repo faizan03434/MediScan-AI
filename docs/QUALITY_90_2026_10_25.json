@@ -1,0 +1,438 @@
+{
+  "skin": {
+    "target": ">90%",
+    "target_met_in_supplied_evidence": false,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "metrics": {},
+    "unmet_requirements": [
+      "test_evaluated_required",
+      "external_test_required",
+      "patient_identity_verified_required",
+      "clinical_ground_truth_reviewed_required",
+      "complete_test_confusion_matrix_required"
+    ],
+    "limitation": "This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review."
+  },
+  "anemia_conjunctiva": {
+    "target": ">90%",
+    "target_met_in_supplied_evidence": false,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "metrics": {
+      "test_balanced_accuracy": 0.591642228739003,
+      "per_class": {
+        "Anemic": {
+          "recall": 0.4090909090909091,
+          "specificity": 0.7741935483870968,
+          "test_examples": 22,
+          "recall_interval": [
+            0.1972087844267126,
+            0.6611407958637396
+          ],
+          "specificity_interval": [
+            0.5510658694728232,
+            0.9054505074144388
+          ]
+        },
+        "Non-anemic": {
+          "recall": 0.7741935483870968,
+          "specificity": 0.4090909090909091,
+          "test_examples": 31,
+          "recall_interval": [
+            0.5510658694728232,
+            0.9054505074144388
+          ],
+          "specificity_interval": [
+            0.1972087844267126,
+            0.6611407958637396
+          ]
+        }
+      },
+      "interval_method": "Wilson, approximate family 95% coverage, Bonferroni across class recall/specificity; independent patients assumed"
+    },
+    "unmet_requirements": [
+      "external_test_required",
+      "patient_identity_verified_required",
+      "clinical_ground_truth_reviewed_required",
+      "test_balanced_accuracy_must_exceed_90_percent",
+      "every_class_recall_and_specificity_must_exceed_90_percent",
+      "class_recall_and_specificity_confidence_lower_bounds_must_exceed_90_percent"
+    ],
+    "limitation": "This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review."
+  },
+  "eye_conjunctivitis": {
+    "target": ">90%",
+    "target_met_in_supplied_evidence": false,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "metrics": {
+      "test_balanced_accuracy": 0.9791666666666667,
+      "per_class": {
+        "healthy_eye": {
+          "recall": 1.0,
+          "specificity": 0.9583333333333334,
+          "test_examples": 22,
+          "recall_interval": [
+            0.7790773084025129,
+            1.0
+          ],
+          "specificity_interval": [
+            0.7327036055014563,
+            0.9948449255124633
+          ]
+        },
+        "infected_eye": {
+          "recall": 0.9583333333333334,
+          "specificity": 1.0,
+          "test_examples": 24,
+          "recall_interval": [
+            0.7327036055014563,
+            0.9948449255124633
+          ],
+          "specificity_interval": [
+            0.7790773084025129,
+            1.0
+          ]
+        }
+      },
+      "interval_method": "Wilson, approximate family 95% coverage, Bonferroni across class recall/specificity; independent patients assumed"
+    },
+    "unmet_requirements": [
+      "external_test_required",
+      "patient_identity_verified_required",
+      "clinical_ground_truth_reviewed_required",
+      "class_recall_and_specificity_confidence_lower_bounds_must_exceed_90_percent"
+    ],
+    "limitation": "This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review."
+  },
+  "wound_segmentation": {
+    "target": ">90%",
+    "target_met_in_supplied_evidence": false,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "metrics": {
+      "test_dice": null
+    },
+    "unmet_requirements": [
+      "test_evaluated_required",
+      "external_test_required",
+      "patient_identity_verified_required",
+      "clinical_ground_truth_reviewed_required",
+      "external_test_dice_must_exceed_90_percent"
+    ],
+    "limitation": "This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review."
+  },
+  "wound_unet": {
+    "target": ">90%",
+    "target_met_in_supplied_evidence": false,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "metrics": {
+      "test_dice": null
+    },
+    "unmet_requirements": [
+      "test_evaluated_required",
+      "external_test_required",
+      "patient_identity_verified_required",
+      "clinical_ground_truth_reviewed_required",
+      "external_test_dice_must_exceed_90_percent"
+    ],
+    "limitation": "This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review."
+  },
+  "posture_sitting": {
+    "target": ">90%",
+    "target_met_in_supplied_evidence": false,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "metrics": {
+      "test_balanced_accuracy": 0.901789924180403,
+      "per_class": {
+        "TLB": {
+          "recall": 0.9732142857142857,
+          "specificity": 0.9535585042219542,
+          "test_examples": 112,
+          "recall_interval": [
+            0.890334037926227,
+            0.9938876539550603
+          ],
+          "specificity_interval": [
+            0.9367822844132732,
+            0.9660441537862781
+          ]
+        },
+        "TLF": {
+          "recall": 0.8880503144654088,
+          "specificity": 0.963076923076923,
+          "test_examples": 795,
+          "recall_interval": [
+            0.8527748926738543,
+            0.9157091042433452
+          ],
+          "specificity_interval": [
+            0.9420772127026701,
+            0.9766519462954043
+          ]
+        },
+        "TLL": {
+          "recall": 0.8733333333333333,
+          "specificity": 1.0,
+          "test_examples": 150,
+          "recall_interval": [
+            0.7780975702272581,
+            0.9313044963733517
+          ],
+          "specificity_interval": [
+            0.9951596915656653,
+            1.0
+          ]
+        },
+        "TLR": {
+          "recall": 0.92,
+          "specificity": 1.0,
+          "test_examples": 150,
+          "recall_interval": [
+            0.834909086329823,
+            0.9631682385958631
+          ],
+          "specificity_interval": [
+            0.9951596915656653,
+            1.0
+          ]
+        },
+        "TUP": {
+          "recall": 0.8543516873889876,
+          "specificity": 0.923777961888981,
+          "test_examples": 563,
+          "recall_interval": [
+            0.8077306716169556,
+            0.8911909798526251
+          ],
+          "specificity_interval": [
+            0.8994833748159682,
+            0.9425754892294781
+          ]
+        }
+      },
+      "interval_method": "Wilson, approximate family 95% coverage, Bonferroni across class recall/specificity; independent patients assumed"
+    },
+    "unmet_requirements": [
+      "external_test_required",
+      "patient_identity_verified_required",
+      "clinical_ground_truth_reviewed_required",
+      "every_class_recall_and_specificity_must_exceed_90_percent",
+      "class_recall_and_specificity_confidence_lower_bounds_must_exceed_90_percent"
+    ],
+    "limitation": "This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review."
+  },
+  "retina": {
+    "target": ">90%",
+    "target_met_in_supplied_evidence": false,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "metrics": {
+      "test_balanced_accuracy": 0.8410427474393931,
+      "per_class": {
+        "cataract": {
+          "recall": 0.9380530973451328,
+          "specificity": 0.9445910290237467,
+          "test_examples": 113,
+          "recall_interval": [
+            0.8449485438669805,
+            0.9767866156459636
+          ],
+          "specificity_interval": [
+            0.903027517517197,
+            0.9689524405016631
+          ]
+        },
+        "diabetic_retinopathy": {
+          "recall": 0.9051094890510949,
+          "specificity": 0.9605633802816902,
+          "test_examples": 137,
+          "recall_interval": [
+            0.8142577858762499,
+            0.9540318011332083
+          ],
+          "specificity_interval": [
+            0.9215400846258711,
+            0.9805866850417436
+          ]
+        },
+        "glaucoma": {
+          "recall": 0.7352941176470589,
+          "specificity": 0.9461538461538461,
+          "test_examples": 102,
+          "recall_interval": [
+            0.6028156405520467,
+            0.8356335284669968
+          ],
+          "specificity_interval": [
+            0.9056869685327321,
+            0.9698358894960218
+          ]
+        },
+        "normal": {
+          "recall": 0.7857142857142857,
+          "specificity": 0.9403409090909091,
+          "test_examples": 140,
+          "recall_interval": [
+            0.6777106971199902,
+            0.8647476070362841
+          ],
+          "specificity_interval": [
+            0.8958169307191282,
+            0.9665475489256876
+          ]
+        }
+      },
+      "interval_method": "Wilson, approximate family 95% coverage, Bonferroni across class recall/specificity; independent patients assumed"
+    },
+    "unmet_requirements": [
+      "external_test_required",
+      "patient_identity_verified_required",
+      "clinical_ground_truth_reviewed_required",
+      "test_balanced_accuracy_must_exceed_90_percent",
+      "every_class_recall_and_specificity_must_exceed_90_percent",
+      "class_recall_and_specificity_confidence_lower_bounds_must_exceed_90_percent"
+    ],
+    "limitation": "This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review."
+  },
+  "anemia-features-20261025": {
+    "target": ">90%",
+    "target_met_in_supplied_evidence": false,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "metrics": {},
+    "unmet_requirements": [
+      "test_evaluated_required",
+      "external_test_required",
+      "patient_identity_verified_required",
+      "clinical_ground_truth_reviewed_required",
+      "complete_test_confusion_matrix_required"
+    ],
+    "limitation": "This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review."
+  },
+  "anemia-resnet18-20261025": {
+    "target": ">90%",
+    "target_met_in_supplied_evidence": false,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "metrics": {},
+    "unmet_requirements": [
+      "test_evaluated_required",
+      "external_test_required",
+      "patient_identity_verified_required",
+      "clinical_ground_truth_reviewed_required",
+      "complete_test_confusion_matrix_required"
+    ],
+    "limitation": "This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review."
+  },
+  "eye-features-20261025": {
+    "target": ">90%",
+    "target_met_in_supplied_evidence": false,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "metrics": {},
+    "unmet_requirements": [
+      "test_evaluated_required",
+      "external_test_required",
+      "patient_identity_verified_required",
+      "clinical_ground_truth_reviewed_required",
+      "complete_test_confusion_matrix_required"
+    ],
+    "limitation": "This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review."
+  },
+  "retina-features-20261025": {
+    "target": ">90%",
+    "target_met_in_supplied_evidence": false,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "metrics": {},
+    "unmet_requirements": [
+      "test_evaluated_required",
+      "external_test_required",
+      "patient_identity_verified_required",
+      "clinical_ground_truth_reviewed_required",
+      "complete_test_confusion_matrix_required"
+    ],
+    "limitation": "This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review."
+  },
+  "scin-expanded-features-20261025": {
+    "target": ">90%",
+    "target_met_in_supplied_evidence": false,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "metrics": {},
+    "unmet_requirements": [
+      "test_evaluated_required",
+      "external_test_required",
+      "patient_identity_verified_required",
+      "clinical_ground_truth_reviewed_required",
+      "complete_test_confusion_matrix_required"
+    ],
+    "limitation": "This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review."
+  },
+  "sitting-posture-normalized-20261025": {
+    "target": ">90%",
+    "target_met_in_supplied_evidence": false,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "metrics": {},
+    "unmet_requirements": [
+      "test_evaluated_required",
+      "external_test_required",
+      "patient_identity_verified_required",
+      "clinical_ground_truth_reviewed_required",
+      "complete_test_confusion_matrix_required"
+    ],
+    "limitation": "This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review."
+  },
+  "skin-features-20261025": {
+    "target": ">90%",
+    "target_met_in_supplied_evidence": false,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "metrics": {},
+    "unmet_requirements": [
+      "test_evaluated_required",
+      "external_test_required",
+      "patient_identity_verified_required",
+      "clinical_ground_truth_reviewed_required",
+      "complete_test_confusion_matrix_required"
+    ],
+    "limitation": "This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review."
+  },
+  "skin-resnet18-20261025": {
+    "target": ">90%",
+    "target_met_in_supplied_evidence": false,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "metrics": {},
+    "unmet_requirements": [
+      "test_evaluated_required",
+      "external_test_required",
+      "patient_identity_verified_required",
+      "clinical_ground_truth_reviewed_required",
+      "complete_test_confusion_matrix_required"
+    ],
+    "limitation": "This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review."
+  },
+  "wound-unet-128-20261025": {
+    "target": ">90%",
+    "target_met_in_supplied_evidence": false,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "metrics": {
+      "test_dice": null
+    },
+    "unmet_requirements": [
+      "test_evaluated_required",
+      "external_test_required",
+      "patient_identity_verified_required",
+      "clinical_ground_truth_reviewed_required",
+      "external_test_dice_must_exceed_90_percent"
+    ],
+    "limitation": "This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review."
+  }
+}

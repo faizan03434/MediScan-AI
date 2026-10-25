@@ -39,6 +39,7 @@ def download(url, path, max_bytes=350 * 1024 * 1024):
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     partial = path.with_suffix('.zip.part')
+    progress = path.with_name('download_progress.json')
     for attempt in range(4):
         offset = partial.stat().st_size if partial.exists() else 0
         try:
@@ -81,6 +82,9 @@ def download(url, path, max_bytes=350 * 1024 * 1024):
             return
         except requests.RequestException as error:
             if attempt == 3:
+                progress.write_text(json.dumps({'status': 'download_failed',
+                    'downloaded_bytes': partial.stat().st_size if partial.exists() else 0,
+                    'error_type': type(error).__name__, 'updated_at': datetime.now(timezone.utc).isoformat()}), encoding='utf-8')
                 raise RuntimeError(f'Download incomplete ({type(error).__name__}); rerun to resume') from None
             print(f'Retrying download ({type(error).__name__})', flush=True)
             time.sleep(2)

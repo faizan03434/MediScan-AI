@@ -1,4 +1,5 @@
-"""Assess the requested >97% target; never approve clinical deployment."""
+"""Assess a numerical research target; never approve clinical deployment."""
+import argparse
 import hashlib
 import json
 import math
@@ -29,7 +30,10 @@ def score(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and 0 <= value <= 1
 
 
-def assess(card, integrity_verified=False):
+def assess(card, integrity_verified=False, target=TARGET):
+    if not score(target) or not 0 < target < 1:
+        raise ValueError('Target must be a finite fraction strictly between zero and one')
+    label = f'{target * 100:g}'
     reasons = []
     if not integrity_verified:
         reasons.append('checkpoint_integrity_unverified')
@@ -40,8 +44,8 @@ def assess(card, integrity_verified=False):
     if card.get('architecture') in {'WoundSegmenter', 'WoundUNet'}:
         value = card.get('test_dice')
         metrics['test_dice'] = value if score(value) else None
-        if not score(value) or value <= TARGET:
-            reasons.append('external_test_dice_must_exceed_97_percent')
+        if not score(value) or value <= target:
+            reasons.append(f'external_test_dice_must_exceed_{label}_percent')
     else:
         matrix = card.get('test_confusion_matrix')
         classes = card.get('classes', [])
@@ -71,13 +75,13 @@ def assess(card, integrity_verified=False):
                     'recall_interval': recall_interval, 'specificity_interval': specificity_interval}
             metrics = {'test_balanced_accuracy': sum(recalls) / len(recalls), 'per_class': per_class}
             metrics['interval_method'] = 'Wilson, approximate family 95% coverage, Bonferroni across class recall/specificity; independent patients assumed'
-            if metrics['test_balanced_accuracy'] <= TARGET:
-                reasons.append('test_balanced_accuracy_must_exceed_97_percent')
-            if min(recalls) <= TARGET or min(specificities) <= TARGET:
-                reasons.append('every_class_recall_and_specificity_must_exceed_97_percent')
-            if min(lower_bounds) <= TARGET:
-                reasons.append('class_recall_and_specificity_confidence_lower_bounds_must_exceed_97_percent')
-    return {'target': '>97%', 'target_met_in_supplied_evidence': not reasons,
+            if metrics['test_balanced_accuracy'] <= target:
+                reasons.append(f'test_balanced_accuracy_must_exceed_{label}_percent')
+            if min(recalls) <= target or min(specificities) <= target:
+                reasons.append(f'every_class_recall_and_specificity_must_exceed_{label}_percent')
+            if min(lower_bounds) <= target:
+                reasons.append(f'class_recall_and_specificity_confidence_lower_bounds_must_exceed_{label}_percent')
+    return {'target': f'>{label}%', 'target_met_in_supplied_evidence': not reasons,
         'clinical_approved': False, 'deployment_authorized': False,
         'metrics': metrics, 'unmet_requirements': reasons,
         'limitation': 'This checks supplied aggregate evidence, not clinical authenticity. Wilson bounds assume independent patients; clustering, site/device bias and segmentation uncertainty require separate review.'}
@@ -85,8 +89,18 @@ def assess(card, integrity_verified=False):
 
 def main():
     from report_medical_training import MODELS
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--target', type=float, default=TARGET)
+    parser.add_argument('--output', type=Path, default=ROOT.parent / 'docs/QUALITY_TARGET_RESULTS.json')
+    parser.add_argument('--include-experiments', action='store_true')
+    args = parser.parse_args()
+    if not score(args.target) or not 0 < args.target < 1:
+        parser.error('Target must be a finite fraction between zero and one')
     results = {}
-    for module, directory in MODELS.items():
+    models = dict(MODELS)
+    if args.include_experiments:
+        models.update({p.name: p.name for p in (ROOT / 'models/research').glob('*20261025') if p.is_dir()})
+    for module, directory in models.items():
         root = ROOT / 'models/research' / directory
         if not (root / 'model_card.json').exists():
             results[module] = {'status': 'not_completed', 'clinical_approved': False}
@@ -94,8 +108,8 @@ def main():
         card = json.loads((root / 'model_card.json').read_text())
         weights = root / 'weights.pt'
         valid = weights.exists() and hashlib.sha256(weights.read_bytes()).hexdigest() == card.get('checkpoint_sha256')
-        results[module] = assess(card, valid)
-    (ROOT.parent / 'docs/QUALITY_TARGET_RESULTS.json').write_text(json.dumps(results, indent=2), encoding='utf-8')
+        results[module] = assess(card, valid, args.target)
+    args.output.write_text(json.dumps(results, indent=2), encoding='utf-8')
     print(json.dumps({name: result.get('target_met_in_supplied_evidence', False) for name, result in results.items()}))
 
 
