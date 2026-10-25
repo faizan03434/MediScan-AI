@@ -11,7 +11,12 @@ HEX = re.compile(r'^[a-fA-F0-9]{64}$')
 ATTRIBUTES = {'pale', 'tip_side_red', 'red_spots', 'ecchymosis', 'cracks', 'tooth_marks', 'thick_coating', 'yellow_coating'}
 TASKS = {'tongue_appearance': 'tongue_external_photo', 'tongue_disease': 'tongue_external_photo',
     'fingernail_anemia': 'fingernail_photo', 'scoliosis_phone_screening': 'back_photo',
-    'scoliosis_radiographic_reference': 'back_photo'}
+    'scoliosis_radiographic_reference': 'back_photo', 'conjunctival_anemia': 'conjunctiva_photo',
+    'skin_disease': 'clinical_skin_photo', 'external_eye_disease': 'external_eye_photo',
+    'retinal_disease': 'fundus_photo', 'wound_segmentation': 'wound_photo'}
+DIAGNOSTIC_REFERENCES = {'skin_disease': 'dermatologist_diagnostic_report',
+    'external_eye_disease': 'ophthalmologist_diagnostic_report',
+    'retinal_disease': 'ophthalmologist_fundus_report'}
 
 
 def evidence(root, value):
@@ -25,6 +30,7 @@ def evidence(root, value):
         raise ValueError('Missing or external evidence file')
     if hashlib.sha256(path.read_bytes()).hexdigest().lower() != value['sha256'].lower():
         raise ValueError('Evidence integrity mismatch')
+    return path
 
 
 def validate_reference_manifest(manifest, evidence_root):
@@ -67,13 +73,18 @@ def validate_reference_manifest(manifest, evidence_root):
         if row.get('review_status') != 'adjudicated' or any(not isinstance(v, str) or not v.strip() for v in reviewers) or reviewers[0].strip() == reviewers[1].strip():
             raise ValueError('Two distinct reviewer references and an adjudication result are required')
         evidence(root, row.get('reference_evidence'))
+        if task in DIAGNOSTIC_REFERENCES or task == 'wound_segmentation':
+            image_proof = row.get('image_evidence')
+            evidence(root, image_proof)
+            if image_proof['sha256'].lower() != digest:
+                raise ValueError('Image evidence must match the reviewed image identity')
         if task == 'tongue_appearance':
             attributes = row.get('attributes', {})
             if not attributes or not set(attributes).issubset(ATTRIBUTES) or not all(type(v) is bool for v in attributes.values()):
                 raise ValueError('Use documented appearance attributes, never inferred organ/disease diagnoses')
             if any(row.get(field) is not None for field in ('disease_label', 'clinical_label', 'diagnosis')):
                 raise ValueError('Appearance labels cannot be presented as disease confirmation')
-        elif task == 'fingernail_anemia':
+        elif task in {'fingernail_anemia', 'conjunctival_anemia'}:
             hb = row.get('hb_g_dl')
             if type(hb) not in (int, float) or not math.isfinite(hb) or not 0 < hb < 30 or row.get('hb_unit') != 'g/dL':
                 raise ValueError('Finite, explicitly unit-labelled source Hb required')
@@ -93,6 +104,33 @@ def validate_reference_manifest(manifest, evidence_root):
             angle = row.get('reported_cobb_angle_degrees')
             if row.get('reference_kind') != 'radiologist_report' or type(angle) not in (float, int) or not math.isfinite(angle) or not 0 <= angle <= 180:
                 raise ValueError('Radiologist reference and reported angle required; no image-derived guess')
+        elif task in DIAGNOSTIC_REFERENCES:
+            if row.get('reference_kind') != DIAGNOSTIC_REFERENCES[task] or not isinstance(row.get('clinical_label'), str) or not row['clinical_label'].strip():
+                raise ValueError('Task-specific specialist reference and explicit clinical label required')
+            if row.get('reference_method') not in {'clinical_examination', 'laboratory_confirmed', 'histopathology', 'fundus_examination', 'multimodal_adjudication'}:
+                raise ValueError('Explicit clinical reference method required; folder names are not a reference standard')
+            if row.get('reference_method') == 'fundus_examination' and task != 'retinal_disease':
+                raise ValueError('Fundus reference cannot replace an external-eye or skin examination')
+            if row.get('label_status') not in {'supported_condition', 'unknown_condition', 'indeterminate'}:
+                raise ValueError('Explicit supported, unknown or indeterminate reference status required')
+        elif task == 'wound_segmentation':
+            if row.get('reference_kind') != 'clinician_wound_annotation':
+                raise ValueError('Clinician wound annotation required, not a cell-culture assay')
+            from PIL import Image
+            image_path = evidence(root, row['image_evidence'])
+            mask_path = evidence(root, row.get('mask_evidence'))
+            with Image.open(image_path) as image, Image.open(mask_path) as mask:
+                if image.width * image.height > 25_000_000 or image.size != mask.size or mask.mode not in {'1', 'L'}:
+                    raise ValueError('Binary wound mask must match source image dimensions')
+                values = {value for count, value in mask.getcolors(256)}
+                if not values.issubset({0, 1, 255}):
+                    raise ValueError('Mask must contain only documented binary foreground/background values')
+                if row.get('wound_present') is not True and row.get('wound_present') is not False:
+                    raise ValueError('Explicit wound presence reference required')
+                if row['wound_present'] != bool(values - {0}):
+                    raise ValueError('Mask contradicts the wound presence reference')
+            if row.get('measurement_claimed') is not False:
+                raise ValueError('Size/healing claims require a separate calibrated longitudinal protocol')
         elif row.get('reference_kind') != 'clinician_diagnostic_report' or not row.get('clinical_label'):
             raise ValueError('A separate clinician reference is required for tongue disease labels')
     return {'records_structurally_valid': len(records), 'distinct_supplied_subjects': len(subjects),

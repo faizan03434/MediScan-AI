@@ -1,0 +1,103 @@
+{
+  "reviewed_on": "2026-10-25",
+  "source_acquisition": {
+    "source": "https://figshare.com/collections/_/6760179",
+    "article_api": "https://api.figshare.com/v2/articles/25867432",
+    "version": 1,
+    "declared_license": "CC0-1.0",
+    "bytes": 91619743,
+    "provider_md5_verified": true,
+    "sha256": "447127bd69fba9f6ba78056732343798bfed0c4360ea538e88880f867e3897dd",
+    "extracted_files": 252,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "note": "Provider references require mapping/duplicate/unit/cohort audit; CC0 is not clinical acceptance."
+  },
+  "training": {
+    "model": "nail-hb-grouped-20261025",
+    "task": "nail_hb_regression",
+    "architecture": "SourceBoxColorRidgeRegression",
+    "source": "https://figshare.com/collections/_/6760179",
+    "declared_license": "CC0-1.0",
+    "provider_hb_unit": "g/L",
+    "target_unit": "g/dL",
+    "near_duplicate_policy": "connected_components_preserve_previous_splits",
+    "original_rows": 250,
+    "retained_subjects": 250,
+    "excluded_images": 0,
+    "near_duplicate_candidate_pairs": 157,
+    "split_counts": {
+      "val": 18,
+      "train": 191,
+      "test": 41
+    },
+    "selected_alpha": 10.0,
+    "candidates": [
+      {
+        "alpha": 0.1,
+        "validation_mae_g_dl": 1.9316202196169998
+      },
+      {
+        "alpha": 1.0,
+        "validation_mae_g_dl": 1.8586083212339435
+      },
+      {
+        "alpha": 10.0,
+        "validation_mae_g_dl": 1.7865635497380414
+      },
+      {
+        "alpha": 100.0,
+        "validation_mae_g_dl": 1.8244977792714947
+      }
+    ],
+    "validation_mae_g_dl": 1.7865635497380414,
+    "validation_rmse_g_dl": 2.2749903542598546,
+    "training_mean_baseline_validation_mae_g_dl": 1.7983420593368225,
+    "checkpoint_sha256": "fcf7cf46b02e77b3f466be7f8d177cacc4d3ffdd8505535163b830462367314f",
+    "source_sha256": "447127bd69fba9f6ba78056732343798bfed0c4360ea538e88880f867e3897dd",
+    "safe_checkpoint_forward_verified": true,
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "test_evaluated": false,
+    "patient_identity_verified": false,
+    "annotation_required_at_inference": true,
+    "limitations": [
+      "Continuous Hb research only; no anemia diagnosis assigned without clinical context.",
+      "Source patient IDs and lab references are provider assertions, not independently authenticated reports.",
+      "Age/sex are withheld; dates hashed; no Pakistan/external/device validation.",
+      "Source nail/skin boxes are supplied, not predicted; not end-to-end live detection.",
+      "Validation selects regularization and is optimistic; reserved test features were not loaded."
+    ]
+  },
+  "frozen_internal_test": {
+    "model": "nail-hb-grouped-20261025",
+    "task": "nail_hb_regression",
+    "evaluation_scope": "internal_provider_site_only",
+    "checkpoint_sha256": "fcf7cf46b02e77b3f466be7f8d177cacc4d3ffdd8505535163b830462367314f",
+    "model_card_sha256": "ac6c90610ccfaf482bcda6ff4f35bae4d0e196a53f532c9cb6598d18a92eb5a4",
+    "manifest_sha256": "ccc4e0e979730b48fa83552868cfb72bade82619a9405baa44192f955bd984a3",
+    "source_sha256": "447127bd69fba9f6ba78056732343798bfed0c4360ea538e88880f867e3897dd",
+    "test_subject_records": 41,
+    "test_near_match_groups": 25,
+    "test_mae_g_dl": 1.5376358703628181,
+    "test_rmse_g_dl": 1.9829212775515568,
+    "test_mean_signed_error_g_dl": -0.001074259456435326,
+    "training_mean_baseline_test_mae_g_dl": 2.0033584471970367,
+    "test_mae_cluster_bootstrap_95_interval_g_dl": [
+      1.1454545877213453,
+      2.085956437704778
+    ],
+    "clinical_approved": false,
+    "deployment_authorized": false,
+    "external_test": false,
+    "parameters_fitted_on_test": false,
+    "test_consumed": true,
+    "limitations": [
+      "Approximate interval resamples near-match groups; independently authenticated patient/site sampling is not established.",
+      "This inspected internal test must not guide further tuning; reserve a fresh external cohort.",
+      "Hb regression with supplied source boxes is not live anemia diagnosis or a classification accuracy percentage."
+    ]
+  },
+  "frozen_model_card_precedes_test_report": true,
+  "clinical_inference_enabled": false
+}

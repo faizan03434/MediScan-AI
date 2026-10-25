@@ -59,6 +59,31 @@
       "modality": "spine radiographs",
       "suitable_for_ordinary_camera_task": false,
       "used_to_replace_camera_labels": false
+    },
+    "nail_hb_figshare": {
+      "url": "https://figshare.com/collections/_/6760179",
+      "article_api": "https://api.figshare.com/v2/articles/25867432",
+      "version": 1,
+      "declared_license": "CC0-1.0",
+      "original_archive_checksum_verified": true,
+      "archive_sha256": "447127bd69fba9f6ba78056732343798bfed0c4360ea538e88880f867e3897dd",
+      "original_files": 252,
+      "provider_subject_rows": 250,
+      "provider_hb_unit": "g/L",
+      "training_target_unit": "g/dL",
+      "provider_patient_photo_hb_mapping_audited": true,
+      "patient_or_lab_identity_independently_authenticated": false,
+      "use": "continuous Hb research with supplied source boxes",
+      "clinical_release_allowed": false
+    },
+    "tmc_tongue_dryad_candidate": {
+      "url": "https://datadryad.org/dataset/doi:10.5061/dryad.1c59zw48r",
+      "metadata_api": "https://datadryad.org/api/v2/datasets/doi%3A10.5061%2Fdryad.1c59zw48r",
+      "declared_license": "CC0-1.0",
+      "archive_downloaded": false,
+      "source_class_map_review": "20 explicitly indexed classes versus 21 claimed in abstract; mixed appearance/traditional organ labels",
+      "disease_labels_verified": false,
+      "clinical_release_allowed": false
     }
   },
   "limitation": "Source licensing declarations and supplied file hashes are evidence inventory, not legal clearance, verified patient consent or clinical approval."
