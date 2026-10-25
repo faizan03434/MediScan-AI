@@ -21,7 +21,7 @@ public class ScanReadAuditTests
         var own = new ScanRecord { UserId = "owner", ScanType = ScanType.SkinDisease, DetectionResult = "private symptom" };
         var other = new ScanRecord { UserId = "other", ScanType = ScanType.SkinDisease };
         db.ScanRecords.AddRange(own, other); await db.SaveChangesAsync();
-        var service = new ScanService(db, null!, null!, null!, new AuditService(db));
+        var service = new ScanService(db, null!, null!, new AuditService(db));
         Assert.NotNull(await service.GetScanByIdAsync(own.Id, "owner"));
         Assert.Null(await service.GetScanByIdAsync(other.Id, "owner"));
         var history = await service.GetScanHistoryAsync("owner", null, 1, 10);

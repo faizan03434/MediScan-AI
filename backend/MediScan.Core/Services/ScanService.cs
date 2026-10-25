@@ -23,26 +23,25 @@ public class ScanService : IScanService
     private readonly IAppDbContext _db;
     private readonly IStorageService _storage;
     private readonly IAiInferenceService _aiService;
-    private readonly IRecommendationService _recommendation;
     private readonly IAuditService _audit;
 
     public ScanService(
         IAppDbContext db,
         IStorageService storage,
         IAiInferenceService aiService,
-        IRecommendationService recommendation,
         IAuditService audit)
     {
         _db = db;
         _storage = storage;
         _aiService = aiService;
-        _recommendation = recommendation;
         _audit = audit;
     }
 
     public async Task<ScanResultDto> CreateScanAsync(
         string userId, CreateScanDto dto, Stream? imageStream, string? contentType)
     {
+        if (imageStream == null || string.IsNullOrWhiteSpace(contentType) || !Enum.IsDefined(dto.ScanType))
+            throw new ArgumentException("A valid scan type and image are required.");
         var scan = new ScanRecord
         {
             UserId = userId,
@@ -71,55 +70,37 @@ public class ScanService : IScanService
                 imageStream.Position = 0;
 
                 // Run AI inference
-                var aiResult = await _aiService.RunInferenceAsync(dto.ScanType, imageStream, contentType);
+                await _aiService.RunInferenceAsync(dto.ScanType, imageStream, contentType);
+                // Enforce the release policy even if an injected/upstream service returns a diagnosis.
+                var aiResult = ClinicalScanPolicy.ForCurrentRelease(dto.ScanType);
 
                 scan.DetectionResult = aiResult.DetectionResult;
-                scan.ConfidenceScore = aiResult.ConfidenceScore;
+                scan.ConfidenceScore = null;
                 scan.DetectionDetails = aiResult.DetectionDetails;
                 scan.AiRecommendation = aiResult.Recommendation;
 
-                // ── GPT-4o post-scan lifestyle advice ──────────
-                if (!((aiResult.DetectionDetails ?? "").Contains("research_preview"))) try
-                {
-                    var advice = await _recommendation.GetScanAdviceAsync(
-                        dto.ScanType,
-                        aiResult.DetectionResult,
-                        aiResult.ConfidenceScore);
-
-                    // Append GPT advice to AI recommendation
-                    scan.AiRecommendation = string.IsNullOrEmpty(aiResult.Recommendation)
-                        ? FormatAdvice(advice)
-                        : aiResult.Recommendation + "\n\n" + FormatAdvice(advice);
-
-                    if (aiResult.NextScanDays == null && advice.NextScanDays > 0)
-                    {
-                        scan.NextScanRecommendation = $"Scan again in {advice.NextScanDays} days — {advice.NextScanReason}";
-                        scan.NextScanDate = DateTime.UtcNow.AddDays(advice.NextScanDays);
-                    }
-                }
-                catch { /* GPT-4o unavailable — fallback already in aiResult.Recommendation */ }
-
-                if (aiResult.NextScanDays.HasValue && scan.NextScanDate == null)
-                {
-                    scan.NextScanRecommendation = $"Scan again in {aiResult.NextScanDays} days";
-                    scan.NextScanDate = DateTime.UtcNow.AddDays(aiResult.NextScanDays.Value);
-                }
             }
 
             scan.Status = ScanStatus.Completed;
             scan.CompletedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
 
-            await _audit.LogAsync("Scan.Create", "ScanRecord", scan.Id.ToString(), userId);
         }
         catch (Exception ex)
         {
             scan.Status = ScanStatus.Failed;
-            await _db.SaveChangesAsync();
-            await _audit.LogAsync("Scan.Create", "ScanRecord", scan.Id.ToString(),
-                userId, success: false, errorMessage: ex.Message);
+            try
+            {
+                await _db.SaveChangesAsync();
+                await _audit.LogAsync("Scan.Create", "ScanRecord", scan.Id.ToString(),
+                    userId, success: false, errorMessage: ex is OperationCanceledException ? "processing_timeout" : "scan_processing_failed");
+            }
+            catch { /* Preserve the processing exception if the failure journal is also unavailable. */ }
             throw;
         }
+
+        // An audit failure after persistence must not relabel a completed upload as failed.
+        await _audit.LogAsync("Scan.Create", "ScanRecord", scan.Id.ToString(), userId);
 
         return MapToDto(scan);
     }
@@ -188,12 +169,15 @@ public class ScanService : IScanService
 
         // Attach comparison note
         var dto = MapToDto(newer);
+        var previous = MapToDto(older);
         dto.DetectionDetails = System.Text.Json.JsonSerializer.Serialize(new
         {
-            CurrentScan = newer.DetectionResult,
-            CurrentConfidence = newer.ConfidenceScore,
-            PreviousScan = older.DetectionResult,
-            PreviousConfidence = older.ConfidenceScore,
+            CurrentScan = dto.DetectionResult,
+            CurrentConfidence = dto.ConfidenceScore,
+            PreviousScan = previous.DetectionResult,
+            PreviousConfidence = previous.ConfidenceScore,
+            ClinicalComparisonAvailable = false,
+            ClinicalInference = false,
             DaysDifference = (newer.CreatedAt - older.CreatedAt).Days
         });
 
@@ -214,33 +198,22 @@ public class ScanService : IScanService
         await _audit.LogAsync("Scan.Delete", "ScanRecord", scanId.ToString(), userId);
     }
 
-    private static ScanResultDto MapToDto(ScanRecord scan) => new()
+    private static ScanResultDto MapToDto(ScanRecord scan)
     {
+        var safe = ClinicalScanPolicy.ForCurrentRelease(scan.ScanType);
+        return new() {
         Id = scan.Id,
         ScanType = scan.ScanType,
         Status = scan.Status,
         ImageUrl = scan.ImageUrl,
-        DetectionResult = scan.DetectionResult,
-        ConfidenceScore = scan.ConfidenceScore,
-        DetectionDetails = scan.DetectionDetails,
-        AiRecommendation = scan.AiRecommendation,
-        NextScanRecommendation = scan.NextScanRecommendation,
-        NextScanDate = scan.NextScanDate,
+        DetectionResult = scan.Status == ScanStatus.Completed ? safe.DetectionResult : scan.Status == ScanStatus.Failed ? "Photo processing failed" : "Processing photo",
+        ConfidenceScore = null,
+        DetectionDetails = safe.DetectionDetails,
+        AiRecommendation = safe.Recommendation,
+        NextScanRecommendation = null,
+        NextScanDate = null,
         CreatedAt = scan.CreatedAt,
         CompletedAt = scan.CompletedAt
-    };
-
-    private static string FormatAdvice(ScanRecommendation advice)
-    {
-        var sb = new System.Text.StringBuilder();
-        if (!string.IsNullOrEmpty(advice.LifestyleAdvice))
-            sb.AppendLine("💡 Lifestyle: " + advice.LifestyleAdvice);
-        if (!string.IsNullOrEmpty(advice.DietAdvice))
-            sb.AppendLine("🥗 Diet: " + advice.DietAdvice);
-        if (!string.IsNullOrEmpty(advice.WhenToSeeDoctor))
-            sb.AppendLine("⚕️ See Doctor When: " + advice.WhenToSeeDoctor);
-        if (advice.KeyPoints.Count > 0)
-            sb.AppendLine("📌 Key Points:\n" + string.Join("\n", advice.KeyPoints.Select(p => "• " + p)));
-        return sb.ToString().Trim();
+        };
     }
 }

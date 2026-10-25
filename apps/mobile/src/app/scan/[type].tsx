@@ -20,6 +20,7 @@ import { Colors } from '../../theme/colors';
 import { SCAN_MODULES, type ScanType, type ScanResult } from '../../types';
 import { format } from 'date-fns';
 import { pickScanPhoto } from '../../utils/pickScanPhoto';
+import { sessionVersion } from '../../services/sessionEvents';
 
 type ViewState = 'consent' | 'camera' | 'review' | 'processing' | 'result';
 
@@ -47,13 +48,15 @@ export default function ScanScreen() {
   // Auto-schedule notification when result has nextScanDate
   useEffect(() => {
     if (!scanResult?.nextScanDate || reminderSet) return;
+    const revision = sessionVersion(); let active = true;
     (async () => {
       const status = await registerForPushNotificationsAsync();
-      if (status === 'granted') {
+      if (active && revision === sessionVersion() && status === 'granted') {
         await scheduleScanReminder(scanResult);
-        setReminderSet(true);
+        if (active && revision === sessionVersion()) setReminderSet(true);
       }
-    })();
+    })().catch(() => undefined);
+    return () => { active = false; };
   }, [scanResult, reminderSet]);
 
   if (!module) {

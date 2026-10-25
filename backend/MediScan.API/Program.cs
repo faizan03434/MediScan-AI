@@ -30,13 +30,15 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     var initializeDatabase = args.Contains("--initialize-database");
-    var builder = WebApplication.CreateBuilder(args.Where(a => a != "--initialize-database").ToArray());
+    var provisionAdmin = args.Contains("--provision-admin");
+    if (initializeDatabase && provisionAdmin) throw new InvalidOperationException("Run initialization and administrator provisioning as separate maintenance steps.");
+    var builder = WebApplication.CreateBuilder(args.Where(a => a is not ("--initialize-database" or "--provision-admin")).ToArray());
     // Local secrets are deliberately excluded from version control. Environment overrides win.
     builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
         .AddInMemoryCollection(EnvFileConfiguration.Read(Path.Combine(builder.Environment.ContentRootPath, ".env")))
         .AddEnvironmentVariables();
     if (!builder.Environment.IsDevelopment()) ProductionConfiguration.Validate(builder.Configuration);
-    using var runtimeLease = initializeDatabase ? RuntimeLease.Maintenance(builder.Environment.ContentRootPath)
+    using var runtimeLease = initializeDatabase || provisionAdmin ? RuntimeLease.Maintenance(builder.Environment.ContentRootPath)
         : RuntimeLease.Shared(builder.Environment.ContentRootPath);
 
     // ─── Serilog ───────────────────────────────
@@ -280,6 +282,21 @@ try
         return;
     }
 
+    if (provisionAdmin)
+    {
+        using var scope = app.Services.CreateScope();
+        var database = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        if ((await database.Database.GetPendingMigrationsAsync()).Any())
+            throw new InvalidOperationException("Apply database migrations before provisioning the initial administrator.");
+        await InitialAdministratorProvisioner.ProvisionAsync(database,
+            scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>(),
+            Environment.GetEnvironmentVariable("MEDISCAN_BOOTSTRAP_ADMIN_EMAIL") ?? "",
+            Environment.GetEnvironmentVariable("MEDISCAN_BOOTSTRAP_ADMIN_PASSWORD") ?? "",
+            Environment.GetEnvironmentVariable("MEDISCAN_BOOTSTRAP_EMAIL_VERIFIED") == "true");
+        Log.Information("Initial administrator provisioned. No password or token is written to logs.");
+        return;
+    }
+
     // Run migrations + seed on startup (dev only)
     if (app.Environment.IsDevelopment())
     {
@@ -295,8 +312,8 @@ try
     using (var privacyScope = app.Services.CreateScope())
         await privacyScope.ServiceProvider.GetRequiredService<AccountDeletionProcessor>().RecoverLedgerIntentsAsync(CancellationToken.None);
 
-    app.UseMiddleware<ExceptionMiddleware>();
     app.UseSerilogRequestLogging();
+    app.UseMiddleware<ExceptionMiddleware>();
 
     // Serve local uploaded files in development
     // Medical uploads are served only by the authenticated, owner-scoped MediaController.

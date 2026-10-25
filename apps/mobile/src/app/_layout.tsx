@@ -18,6 +18,7 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   const loadUser = useAuthStore((s) => s.loadUser);
+  const authenticated = useAuthStore((s) => s.isAuthenticated);
   useEffect(() => {
     const unsubscribe = useAuthStore.subscribe((state, previous) => {
       if (state.user?.id !== previous.user?.id) queryClient.clear();
@@ -42,8 +43,11 @@ export default function RootLayout() {
 
           {/* Auth group */}
           <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-
-          {/* Main tabs */}
+          <Stack.Screen name="index" options={{ animation: 'none' }} />
+          <Stack.Screen name="information/[topic]" />
+          <Stack.Screen name="deletion-status" />
+          {/* Native protected routes remove private modals and their history on session expiry. */}
+          <Stack.Protected guard={authenticated}>
           <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
 
           {/* Scan modal */}
@@ -53,10 +57,17 @@ export default function RootLayout() {
           <Stack.Screen name="compare/[scanId]" options={{ animation: 'slide_from_right' }} />
 
           {/* Doctor portal */}
-          <Stack.Screen name="doctor" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="doctor/index" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="doctor/request-access" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="doctor/consents" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="doctor/patient/[id]" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="doctor/patient/scan/[scanId]" />
+          <Stack.Screen name="record/[id]" />
+          <Stack.Screen name="profile/edit" />
+          <Stack.Screen name="profile/data" />
+          <Stack.Screen name="profile/delete" />
+          <Stack.Screen name="profile/activity" />
+          </Stack.Protected>
         </Stack>
         <Toast />
       </QueryClientProvider>

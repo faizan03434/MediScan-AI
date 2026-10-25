@@ -47,6 +47,10 @@ jobs:
         working-directory: apps/mobile
         run: npm run test:session
 
+      - name: Notification privacy and route coverage
+        working-directory: apps/mobile
+        run: npm run test:privacy
+
       - name: Check for TODO / FIXME markers
         working-directory: apps/mobile
         run: |

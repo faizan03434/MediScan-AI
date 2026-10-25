@@ -3,6 +3,7 @@ using MediScan.Core.Interfaces;
 using Microsoft.Extensions.Configuration;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using MediScan.Core.Services;
 
 namespace MediScan.Infra.External;
 
@@ -41,34 +42,43 @@ public class AiInferenceService : IAiInferenceService
         imageContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
         content.Add(imageContent, "image", "scan_image.jpg");
 
-        _httpClient.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", _apiKey);
-
-        var response = await _httpClient.PostAsync($"{_aiServerUrl}{endpoint}", content);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_aiServerUrl}{endpoint}") { Content = content };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
         response.EnsureSuccessStatusCode();
-
-        var json = await response.Content.ReadAsStringAsync();
-        var result = JsonSerializer.Deserialize<AiServerResponse>(json,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-            ?? throw new Exception("Invalid AI server response");
-
-        return new AiInferenceResult
+        const int maximumBytes = 64 * 1024;
+        if (response.Content.Headers.ContentLength > maximumBytes)
+            throw new HttpRequestException("Image service response exceeds its metadata budget.");
+        await using var body = await response.Content.ReadAsStreamAsync(deadline.Token);
+        using var payload = new MemoryStream();
+        var buffer = new byte[8192];
+        int count;
+        while ((count = await body.ReadAsync(buffer.AsMemory(), deadline.Token)) != 0)
         {
-            DetectionResult = result.Result,
-            ConfidenceScore = result.Confidence,
-            DetectionDetails = JsonSerializer.Serialize(result.Details),
-            Recommendation = result.Recommendation,
-            NextScanDays = result.NextScanDays
-        };
-    }
-
-    private class AiServerResponse
-    {
-        public string Result { get; set; } = string.Empty;
-        public float Confidence { get; set; }
-        public object? Details { get; set; }
-        public string? Recommendation { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("next_scan_days")]
-        public int? NextScanDays { get; set; }
+            if (payload.Length + count > maximumBytes)
+                throw new HttpRequestException("Image service response exceeds its metadata budget.");
+            payload.Write(buffer, 0, count);
+        }
+        try
+        {
+            using var document = JsonDocument.Parse(payload.ToArray(), new JsonDocumentOptions { MaxDepth = 16 });
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("result", out var result) || result.ValueKind != JsonValueKind.String
+                || string.IsNullOrWhiteSpace(result.GetString()) || result.GetString()!.Length > 256
+                || !root.TryGetProperty("confidence", out var confidence) || confidence.ValueKind != JsonValueKind.Number || !confidence.TryGetSingle(out var value)
+                || !float.IsFinite(value) || value < 0 || value > 1
+                || !root.TryGetProperty("details", out var details) || details.ValueKind != JsonValueKind.Object)
+                throw new HttpRequestException("Image service response does not match its contract.");
+            if (details.TryGetProperty("module", out var module) &&
+                (module.ValueKind != JsonValueKind.String || module.GetString() != ClinicalScanPolicy.Module(scanType)))
+                throw new HttpRequestException("Image service response does not match the requested task.");
+        }
+        catch (JsonException)
+        {
+            throw new HttpRequestException("Image service returned invalid metadata.");
+        }
+        // Upstream self-declared confidence/release flags cannot override acceptance evidence.
+        return ClinicalScanPolicy.ForCurrentRelease(scanType);
     }
 }

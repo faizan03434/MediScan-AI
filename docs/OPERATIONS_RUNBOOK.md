@@ -11,7 +11,11 @@ Set `ASPNETCORE_ENVIRONMENT=Production`, `Database__Provider=postgresql` and a s
 - `AllowedOrigins__0=https://<browser-host>` and further numbered origins if needed; explicit semicolon-separated `AllowedHosts` without wildcards.
 - A protected, durable Data Protection keyring. Outside Windows configure `Authentication__DataProtection__CertificatePath` and its privately supplied password. Windows defaults to DPAPI for the service OS user; retaining the files alone does not make them decryptable on another host/user.
 
-Run the published API with `--initialize-database` before starting API workers. It acquires the local maintenance lease, applies the selected provider's migrations, provisions three roles, initializes the independent deletion ledger and exits. It does not create an admin account or demo accounts. Administrator enrollment/transfer remains an operator-controlled task; there is no public role-promotion registration parameter.
+Run the published API with `--initialize-database` before starting API workers. It acquires the local maintenance lease, applies the selected provider's migrations, provisions three roles, initializes the independent deletion ledger and exits. It does not create an admin account or demo accounts. There is no public role-promotion registration parameter.
+
+Before starting workers, provision the first administrator with `dotnet MediScan.API.dll --provision-admin`, using the same application content root and production configuration. Supply `MEDISCAN_BOOTSTRAP_ADMIN_EMAIL` and `MEDISCAN_BOOTSTRAP_ADMIN_PASSWORD` through private process environment variables; the password must satisfy Identity policy and be at least 16 characters. Verify ownership of that email separately, then set `MEDISCAN_BOOTSTRAP_EMAIL_VERIFIED=true` for this invocation. This flag records the operator's assertion; it does not send or verify an email OTP. Never put these values in command arguments, source control or shared shell history. Remove them from the launching environment afterward.
+
+Provisioning requires initialized roles and no pending migrations, takes an exclusive local maintenance lease and a database account-mutation lock, refuses any existing administrator (including an inactive one), and refuses to promote or replace an existing account. It creates an email-confirmed administrator with a hashed password and role membership transactionally. Stop all API workers first; coordinate all hosts separately in a distributed deployment. Later transfers use authenticated administrative controls. Lost administrator access requires a separately reviewed recovery process; repeating bootstrap is not a recovery mechanism.
 
 The PostgreSQL migration chain is a **fresh schema baseline**. Do not apply it blindly over an older database built from the historical mixed-provider migrations. Inventory that schema and plan/test its upgrade separately. Production runtime does not automatically run migrations. Development still runs migrations and seeds clearly documented demo accounts.
 
@@ -44,8 +48,12 @@ This is not a PostgreSQL/pg_dump or Azure snapshot tool. For those providers, im
 dotnet build backend/MediScan.sln
 python infrastructure/smoke_maintenance.py
 dotnet test backend/MediScan.Tests/MediScan.Tests.csproj
+dotnet build backend/MediScan.API/MediScan.API.csproj -c Release
+python infrastructure/smoke_production_tls.py
 ```
 
 The maintenance smoke command creates synthetic data only under ignored `.preview/maintenance-drills/` and retains private drill logs. Its temporary encryption key is not retained, so the fixture archive is not an operator recovery backup. PostgreSQL integration tests run only when `MEDISCAN_TEST_POSTGRES` identifies a disposable-capable server; they create/drop uniquely named `mediscan_test_<random>` databases and require suitable privileges. Without that environment variable they skip explicitly.
+
+The Windows Production-mode TLS smoke command creates a separate synthetic SQLite application under ignored `.preview/production-drills/`. It tests initial roles without demo users, first-admin provisioning, rejected unverified/repeated provisioning, HTTPS certificate and hostname verification using an isolated fixture trust context, admin login/access controls, and readiness failure when its intentionally unavailable image dependency is configured. It does not alter the system trust store or use the development database. Its one-day self-signed certificate is a test fixture, not a phone/public deployment certificate. This does not test public DNS/ingress, managed PostgreSQL restore, real email delivery, OAuth or physical devices.
 
 After startup, `/api/v1/health` is cheap liveness and `/api/v1/health/ready` checks schema queries plus the image service's liveness. Readiness does not validate SMTP, Google credentials, model accuracy or clinical release. Monitor readiness failures, OTP delivery errors, deletion cleanup retries, archive/ledger replication age and restore outcomes without logging patient data or credentials. Public cloud monitoring/alert delivery and key rotation drills remain pending.

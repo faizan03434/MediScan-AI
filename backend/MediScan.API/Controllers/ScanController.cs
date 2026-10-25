@@ -33,25 +33,16 @@ public class ScanController : ControllerBase
         if (!Enum.IsDefined(scanType) || image == null || image.Length == 0)
             return BadRequest(ApiResponse<object>.Fail("A valid scan type and image are required."));
 
-        Stream? imageStream = null;
-        string? contentType = null;
+        var allowedTypes = new[] { "image/jpeg", "image/png", "image/webp" };
+        if (!allowedTypes.Contains(image.ContentType.ToLowerInvariant()))
+            return BadRequest(ApiResponse<object>.Fail("Only JPEG, PNG, and WebP images are allowed."));
 
-        if (image != null)
-        {
-            // Validate image
-            var allowedTypes = new[] { "image/jpeg", "image/png", "image/webp" };
-            if (!allowedTypes.Contains(image.ContentType.ToLower()))
-                return BadRequest(ApiResponse<object>.Fail("Only JPEG, PNG, and WebP images are allowed."));
+        if (image.Length > 10 * 1024 * 1024)
+            return BadRequest(ApiResponse<object>.Fail("Image size must be under 10MB."));
 
-            if (image.Length > 10 * 1024 * 1024)
-                return BadRequest(ApiResponse<object>.Fail("Image size must be under 10MB."));
-
-            imageStream = image.OpenReadStream();
-            contentType = image.ContentType;
-        }
-
+        await using var imageStream = image.OpenReadStream();
         var dto = new CreateScanDto { ScanType = scanType };
-        var result = await _scanService.CreateScanAsync(userId, dto, imageStream, contentType);
+        var result = await _scanService.CreateScanAsync(userId, dto, imageStream, image.ContentType);
 
         return Ok(ApiResponse<ScanResultDto>.Ok(result, "Scan submitted successfully."));
     }

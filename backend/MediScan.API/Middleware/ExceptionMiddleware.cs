@@ -47,13 +47,17 @@ public class ExceptionMiddleware
             await WriteError(context, HttpStatusCode.ServiceUnavailable,
                 "Processing timed out. Please try again later.");
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            // Client disconnected; do not journal request/provider contents or write another response.
+        }
         catch (Microsoft.IdentityModel.Tokens.SecurityTokenException)
         {
             await WriteError(context, HttpStatusCode.Unauthorized, "Google identity could not be verified. Please sign in again.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception");
+            _logger.LogError("Unhandled {ExceptionType}; trace {TraceId}", ex.GetType().Name, context.TraceIdentifier);
             await WriteError(context, HttpStatusCode.InternalServerError,
                 "An unexpected error occurred. Please try again.");
         }
@@ -61,6 +65,7 @@ public class ExceptionMiddleware
 
     private static async Task WriteError(HttpContext context, HttpStatusCode code, string message)
     {
+        if (context.Response.HasStarted) { context.Abort(); return; }
         context.Response.StatusCode = (int)code;
         context.Response.ContentType = "application/json";
 

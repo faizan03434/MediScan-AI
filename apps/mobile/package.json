@@ -10,7 +10,8 @@
     "lint": "eslint . --ext .ts,.tsx",
     "type-check": "tsc --noEmit",
     "test:capture": "node scripts/test-capture-stability.cjs",
-    "test:session": "node scripts/test-session-security.cjs"
+    "test:session": "node scripts/test-session-security.cjs",
+    "test:privacy": "node scripts/test-notification-privacy.cjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
