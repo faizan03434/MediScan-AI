@@ -1,0 +1,22 @@
+{
+  "task": "scoliosis_radiographic_reference",
+  "intended_use": "research",
+  "rights": {
+    "status": "pending",
+    "permitted_uses": [],
+    "evidence": {
+      "path": "REPLACE_WITH_REVIEWED_SOURCE_TERMS",
+      "sha256": ""
+    }
+  },
+  "annotation_protocol": {
+    "path": "REPLACE_WITH_CLINICIAN_PROTOCOL",
+    "sha256": ""
+  },
+  "data_use_basis": "",
+  "privacy_review": {
+    "path": "REPLACE_WITH_PRIVACY_REVIEW",
+    "sha256": ""
+  },
+  "records": []
+}

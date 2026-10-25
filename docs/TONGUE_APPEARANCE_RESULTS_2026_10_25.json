@@ -1,0 +1,179 @@
+{
+  "model": {
+    "model": "tongue-appearance-features-20261025",
+    "architecture": "FrozenImageNetColorRegularizedFeatures",
+    "task": "tongue_appearance",
+    "backbone": "mobilenet",
+    "selected_features": "color",
+    "classes": [
+      "abu abu",
+      "hitam",
+      "kuning",
+      "normal",
+      "putih",
+      "ungu"
+    ],
+    "validation_balanced_accuracy": 0.49087355117671555,
+    "selected_C": 1.0,
+    "validation_confusion_matrix": [
+      [
+        61,
+        17,
+        11,
+        14,
+        21,
+        21
+      ],
+      [
+        3,
+        12,
+        2,
+        2,
+        2,
+        3
+      ],
+      [
+        22,
+        16,
+        114,
+        20,
+        20,
+        5
+      ],
+      [
+        33,
+        18,
+        16,
+        147,
+        35,
+        56
+      ],
+      [
+        50,
+        14,
+        22,
+        42,
+        180,
+        54
+      ],
+      [
+        6,
+        5,
+        4,
+        16,
+        9,
+        35
+      ]
+    ],
+    "validation_report": {
+      "abu abu": {
+        "precision": 0.3485714285714286,
+        "recall": 0.4206896551724138,
+        "f1-score": 0.38125,
+        "support": 145.0
+      },
+      "hitam": {
+        "precision": 0.14634146341463414,
+        "recall": 0.5,
+        "f1-score": 0.22641509433962265,
+        "support": 24.0
+      },
+      "kuning": {
+        "precision": 0.6745562130177515,
+        "recall": 0.5786802030456852,
+        "f1-score": 0.6229508196721312,
+        "support": 197.0
+      },
+      "normal": {
+        "precision": 0.6099585062240664,
+        "recall": 0.4819672131147541,
+        "f1-score": 0.5384615384615384,
+        "support": 305.0
+      },
+      "putih": {
+        "precision": 0.6741573033707865,
+        "recall": 0.4972375690607735,
+        "f1-score": 0.5723370429252782,
+        "support": 362.0
+      },
+      "ungu": {
+        "precision": 0.20114942528735633,
+        "recall": 0.4666666666666667,
+        "f1-score": 0.28112449799196787,
+        "support": 75.0
+      },
+      "accuracy": 0.4954873646209386,
+      "macro avg": {
+        "precision": 0.4424557233143373,
+        "recall": 0.49087355117671555,
+        "f1-score": 0.4370898322317564,
+        "support": 1108.0
+      },
+      "weighted avg": {
+        "precision": 0.570497401935399,
+        "recall": 0.4954873646209386,
+        "f1-score": 0.5197993139518757,
+        "support": 1108.0
+      }
+    },
+    "pretrained_sha256": "047dcff4addef86ea5bc2eff13c9614dc11f47ab1160d0a71a25e7db994f4e1f",
+    "manifest_sha256": "06e9b8e160e921465df41b179e90e93d21eeb41a60547307628b658575d108b8",
+    "checkpoint_sha256": "58db77e0323501017dce731c80980eaebdca0f16dd5f8532c40ccf5348199b6f",
+    "split_counts": {
+      "train": 3954,
+      "val": 1108,
+      "test": 552
+    },
+    "split_identity": "augmentation_family",
+    "patient_identity_verified": false,
+    "test_evaluated": false,
+    "clinical_approved": false,
+    "commercial_release_allowed": false,
+    "release_status": "research_only_validation_selected",
+    "limitations": [
+      "Existing validation reused to select feature mode and regularization; optimistic selection score.",
+      "Test image bytes never loaded; no new independent or external clinical performance established.",
+      "Patient identity, clinical reference labels and commercial source rights require review.",
+      "Raw color descriptors are lighting/device sensitive and are not color calibration."
+    ]
+  },
+  "appearance_dataset": {
+    "task": "tongue_appearance",
+    "source": "https://zenodo.org/records/20970467",
+    "declared_license": "CC BY 4.0",
+    "source_class_names": [
+      "abu abu",
+      "hitam",
+      "kuning",
+      "normal",
+      "putih",
+      "ungu"
+    ],
+    "source_class_map_verified": true,
+    "class_map_sha256": "e0256128e9be4a0a5cd82e0faa784c75a2c1bdf88f0e0ba2e03af9af7b56d485",
+    "clinical_ready": false,
+    "patient_identity_verified": false,
+    "limitations": [
+      "Source normal means provider appearance category, not confirmed healthy.",
+      "Color/appearance classes do not establish anemia, deficiency, infection or organ disease.",
+      "Export-family/duplicate separation is not verified subject separation."
+    ],
+    "retained_images": 5614,
+    "quarantined_images": 189,
+    "class_counts": {
+      "putih": 1899,
+      "kuning": 995,
+      "abu abu": 715,
+      "hitam": 110,
+      "normal": 1534,
+      "ungu": 361
+    },
+    "split_counts": {
+      "train": 3954,
+      "val": 1108,
+      "test": 552
+    }
+  },
+  "clinical_inference_enabled": false,
+  "diagnostic_diseases_supported": []
+}

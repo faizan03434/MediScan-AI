@@ -1,5 +1,7 @@
 # Tongue and posture — 10 October 2026
 
+**25 October update:** [Label/permission progress](LABEL_PERMISSION_PROGRESS_2026_10_25.md) records the recovered six-class tongue appearance map, audited 5,614-image research cohort and completed 49.09% validation pilot. The original fingernail archive is now checksum-verified and all 4,260 mirror files match. Scoliosis1K inquiry sending was authorized and attempted, but SMTP delivery was not confirmed. Clinical labels, verified subject mapping and required written exceptions remain open. The entries below preserve the earlier checkpoint.
+
 Applicant details supplied by the owner: Muhammad Faizan, independent developer in Pakistan, contact iamfaizan884@gmail.com. No institutional affiliation has been claimed.
 
 ## Tongue

@@ -1,0 +1,88 @@
+{
+  "fingernail": {
+    "task": "fingernail_anemia",
+    "source": "https://data.mendeley.com/datasets/2xx4j3kjg2/1",
+    "original_declared_license": "CC BY 4.0",
+    "original_license_page_verified": true,
+    "original_mirror_identity_verified": true,
+    "byte_identical_original_mirror_assets": 4260,
+    "hb_metadata_files_in_original_archive": 0,
+    "mirror_images": 4260,
+    "unique_decoded_images": 2087,
+    "augmentation_families": 492,
+    "provider_filename_label_counts": {
+      "Anemic": 2487,
+      "unresolved": 1660,
+      "Non-anemic": 113
+    },
+    "filename_issues": {
+      "unsupported_filename": 79,
+      "unconfirmed_provider_spelling": 1581
+    },
+    "conflicting_exact_pixel_groups": 0,
+    "blocked_augmentation_families": 0,
+    "candidate_images_without_detected_label_issue": 2600,
+    "patient_identity_verified": false,
+    "hb_mapping_verified": false,
+    "training_ready": false,
+    "clinical_ready": false,
+    "commercial_release_allowed": false,
+    "remaining": [
+      "Confirm original naming aliases and ambiguous Non-Anrmic spelling with the provider.",
+      "Obtain authoritative image-to-subject and image-to-Hb mapping; do not infer patient identity from filenames.",
+      "Resolve duplicate/conflicting annotations and establish independent clinical reference labels."
+    ]
+  },
+  "tongue": {
+    "task": "tongue_appearance",
+    "source": "https://zenodo.org/records/20970467",
+    "original_checksum_verified": true,
+    "declared_license": "CC BY 4.0",
+    "source_image_counts": {
+      "test": 578,
+      "train": 4066,
+      "valid": 1159
+    },
+    "numeric_class_instance_counts": {
+      "4": 1953,
+      "2": 1013,
+      "0": 739,
+      "1": 110,
+      "3": 1620,
+      "5": 370
+    },
+    "annotation_geometry_counts": {
+      "polygon": 5804,
+      "box": 1
+    },
+    "invalid_annotation_counts": {},
+    "labels_without_image_pair": 0,
+    "class_map_files": [
+      "images/data.yaml"
+    ],
+    "exact_file_cross_split_groups": 0,
+    "source_class_map_verified": true,
+    "source_class_names": [
+      "abu abu",
+      "hitam",
+      "kuning",
+      "normal",
+      "putih",
+      "ungu"
+    ],
+    "class_map_sha256": "e0256128e9be4a0a5cd82e0faa784c75a2c1bdf88f0e0ba2e03af9af7b56d485",
+    "class_meanings": "Provider tongue appearance/color classes, not clinician-confirmed disease labels",
+    "patient_identity_verified": false,
+    "clinical_disease_labels_available": false,
+    "training_ready": false,
+    "clinical_ready": false,
+    "commercial_release_allowed": false,
+    "remaining": [
+      "Keep mixed box/polygon tasks separate; exclude unsupported geometry from mask training.",
+      "Review split overlap and annotation errors before deriving a training manifest.",
+      "Obtain independent subject mapping and clinician-confirmed disease labels for any diagnostic claim.",
+      "TongueDx academic-only access/commercial exception remains pending author approval."
+    ]
+  },
+  "clinical_inference_enabled": false
+}

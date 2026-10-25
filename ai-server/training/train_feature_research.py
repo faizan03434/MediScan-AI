@@ -35,7 +35,15 @@ def color_features(image):
 
 
 def inputs(task):
-    if task in ('skin', 'scin'):
+    if task == 'tongue_appearance':
+        base = ROOT / 'datasets/original/tongue_coating_zenodo_20970467'
+        directory = base / 'raw'
+        manifest_path = base / 'appearance_manifest.json'
+        manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+        if manifest.get('clinical_ready') is not False or manifest.get('source_class_map_verified') is not True or manifest.get('research_only') is not True:
+            raise ValueError('Audited source-labelled appearance research manifest required')
+        identity = 'augmentation_family'
+    elif task in ('skin', 'scin'):
         directory = ROOT / ('datasets/kaggle/skindisnet_3_v1' if task == 'skin' else 'datasets/scin')
         manifest_path = directory / ('research_patient_manifest.json' if task == 'skin' else 'expanded_manifest_20261025.json')
         manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
@@ -160,7 +168,7 @@ def run(task, output, backbone_name='mobilenet'):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--task', choices=['skin', 'scin', 'anemia', 'eye', 'retina'], required=True)
+    parser.add_argument('--task', choices=['skin', 'scin', 'anemia', 'eye', 'retina', 'tongue_appearance'], required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--backbone', choices=['mobilenet', 'resnet18'], default='mobilenet')
     args = parser.parse_args()

@@ -1,0 +1,65 @@
+{
+  "reviewed_on": "2026-10-25",
+  "clinical_inference_enabled": false,
+  "sources": {
+    "tongue_coating": {
+      "url": "https://zenodo.org/records/20970467",
+      "declared_license": "CC BY 4.0",
+      "original_archive_checksum_verified": true,
+      "source_class_map_recovered": true,
+      "scope": "six provider color/appearance categories only",
+      "disease_labels_verified": false,
+      "clinical_release_allowed": false
+    },
+    "tonguedx": {
+      "url": "https://github.com/tonguedx/tonguedx",
+      "declared_license": "CC BY-NC-SA 4.0; academic research only",
+      "access_inquiry_submitted_on": "2026-10-10",
+      "written_commercial_exception_available": false,
+      "permission_status": "approval_not_available_in_project_evidence",
+      "clinical_release_allowed": false
+    },
+    "fingernails_ghana": {
+      "url": "https://data.mendeley.com/datasets/2xx4j3kjg2/1",
+      "declared_license": "CC BY 4.0",
+      "original_metadata_license_verified": true,
+      "original_archive_expected_sha256": "641ef99dd2b343eb00d0fc71b5062ba0a903046228440ab6b6311f81b0dc59ed",
+      "original_payload_verification": "sha256_verified",
+      "provider_filename_categories_recovered": true,
+      "ambiguous_spelling_and_names_quarantined": true,
+      "hb_and_patient_mapping_verified": false,
+      "clinical_release_allowed": false,
+      "original_mirror_identity_verified": true,
+      "byte_identical_original_mirror_assets": 4260,
+      "hb_metadata_files_in_original_archive": 0
+    },
+    "scoliosis1k": {
+      "url": "https://zhouzi180.github.io/Scoliosis1K/",
+      "agreement_url": "https://zhouzi180.github.io/Scoliosis1K/static/resources/Scoliosis1k_release_agreement.pdf",
+      "terms": "academic use only; institutional agreement; no commercial use under standard terms",
+      "signed_agreement_available": false,
+      "written_commercial_exception_available": false,
+      "inquiry_user_authorized": true,
+      "inquiry_delivery_status": "delivery_not_confirmed",
+      "inquiry_error_type": "SMTPServerDisconnected",
+      "permission_approved": false,
+      "restricted_data_used": false,
+      "clinical_release_allowed": false
+    },
+    "phone_back_photo_candidate": {
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11592223/",
+      "access": "available on request from authors",
+      "permission_status": "not_obtained",
+      "downloaded": false,
+      "clinical_release_allowed": false
+    },
+    "radiograph_alternative": {
+      "url": "https://data.mendeley.com/datasets/xkt857dsxk/1",
+      "declared_license": "CC BY 4.0",
+      "modality": "spine radiographs",
+      "suitable_for_ordinary_camera_task": false,
+      "used_to_replace_camera_labels": false
+    }
+  },
+  "limitation": "Source licensing declarations and supplied file hashes are evidence inventory, not legal clearance, verified patient consent or clinical approval."
+}
